@@ -1,4 +1,4 @@
-name: Build APK
+name: Build AAB
 on:
   push:
   workflow_dispatch:
@@ -17,14 +17,12 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.7"
+          gradle-version: "8.13"
       - name: Build
         working-directory: VinylWidget
-        run: gradle assembleDebug --stacktrace
+        run: gradle bundleRelease --stacktrace
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Record Widget ${{ github.run_number }}
-          files: |
-            VinylWidget/app/build/outputs/apk/debug/app-debug.apk
-            VinylWidget/weather/build/outputs/apk/debug/weather-debug.apk
+          files: VinylWidget/app/build/outputs/bundle/release/app-release.aab
