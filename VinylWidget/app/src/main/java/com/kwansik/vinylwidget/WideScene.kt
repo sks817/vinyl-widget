@@ -64,7 +64,10 @@ class WideScene(
     }
 
     /** cardAlpha = 0이면 회색 카드를 그리지 않고(유리 배경 위) 글자는 fg/sub 색을 씀 */
-    fun draw(design: Int, d: WeatherData, cardAlpha: Int = 148, lightCard: Boolean = false) {
+    fun draw(
+        design: Int, d: WeatherData, cardAlpha: Int = 148, lightCard: Boolean = false,
+        corner: Int = -1, glassArt: Boolean = false
+    ) {
         val today = LocalDate.now()
         val md = "${today.monthValue}.${today.dayOfMonth}"
         val wk = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.KOREAN)
@@ -125,7 +128,8 @@ class WideScene(
         } else if (design == 1) {
             // ---- 파노라마 ----
             val r = RectF(pad, pad, W - pad, H - pad)
-            val clip = Path().apply { addRoundRect(r, r.height() * 0.30f, r.height() * 0.30f, Path.Direction.CW) }   // 곡률 ↑
+            val rad = r.height() * (if (corner < 0) 30 else corner) / 100f        // 모서리: 높이의 % (기본 30)
+            val clip = Path().apply { addRoundRect(r, rad, rad, Path.Direction.CW) }
             c.save(); c.clipPath(clip)
             Assets.get(ctx, Scenes.panorama(kind, night))?.let { b ->
                 // 위젯 비율에 맞게 가운데를 잘라서(center-crop) 채움
@@ -135,6 +139,7 @@ class WideScene(
                 c.drawBitmap(b, src, r, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
             }
             c.restore()
+            if (glassArt) GlassArt.draw(c, r, rad)
             val dark = !night && kind != "rain"
             val main = if (dark) 0xFF23262E.toInt() else 0xFFFBF1DC.toInt()
             val sub = if (dark) 0xFF3E434D.toInt() else 0xFFE2D7C6.toInt()

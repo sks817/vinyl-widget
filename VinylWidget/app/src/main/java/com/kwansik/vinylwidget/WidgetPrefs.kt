@@ -11,9 +11,11 @@ enum class Kind { MUSIC, WEATHER, MUSIC_WIDE, WEATHER_WIDE }
 /**
  * 위젯 꾸미기 값. design은 날씨 위젯에서만 사용.
  * glass = 배경 '자동(유리)', fg = Palette.AUTO면 글자·버튼 색 자동
+ * corner = 그림 모서리 둥글기(짧은 변의 %, -1이면 디자인 기본값), glassArt = 그림 유리 캡슐 효과
  */
 data class WidgetStyle(
-    val white: Boolean, val transparency: Int, val fg: Int, val design: Int, val glass: Boolean = true
+    val white: Boolean, val transparency: Int, val fg: Int, val design: Int, val glass: Boolean = true,
+    val corner: Int = -1, val glassArt: Boolean = true
 )
 
 /** 위젯 종류별 고정 값 (꾸미기 화면이 이걸 보고 동작) */
@@ -41,6 +43,9 @@ object KindConfig {
     fun colorTitle(k: Kind) = if (isMusic(k)) "버튼·글자 색상" else "글자·아이콘 색상"
     fun colorNote(k: Kind): String? =
         if (!isMusic(k)) "풍경 그림 위 글자는 그림에 맞춰 자동으로 바뀌고, 그림 밖 글자는 이 색을 씁니다" else null
+    /** 그림 모서리 둥글기 기본값(짧은 변의 %): 2×2 재킷 11, 1×4 파노라마 30 */
+    fun defaultCorner(k: Kind) = if (k == Kind.WEATHER_WIDE) 30 else 11
+
     fun designs(k: Kind): Array<String>? = when (k) {
         Kind.WEATHER -> WeatherWidget.DESIGN_NAMES
         Kind.WEATHER_WIDE -> WeatherWidget.WIDE_DESIGN_NAMES
@@ -96,7 +101,9 @@ object WidgetPrefs {
             p.getInt(dk(k, "a"), d.transparency),
             p.getInt(dk(k, "f"), d.fg),
             p.getInt(dk(k, "d"), d.design),
-            p.getBoolean(dk(k, "g"), d.glass)
+            p.getBoolean(dk(k, "g"), d.glass),
+            p.getInt(dk(k, "r"), d.corner),
+            p.getBoolean(dk(k, "ga"), d.glassArt)
         )
         if (id == null) return base
         return WidgetStyle(
@@ -104,7 +111,9 @@ object WidgetPrefs {
             p.getInt("a_$id", base.transparency),
             p.getInt("f_$id", base.fg),
             p.getInt("d_$id", base.design),
-            p.getBoolean("g_$id", base.glass)
+            p.getBoolean("g_$id", base.glass),
+            p.getInt("r_$id", base.corner),
+            p.getBoolean("ga_$id", base.glassArt)
         )
     }
 
@@ -114,9 +123,11 @@ object WidgetPrefs {
         if (id != null) {
             e.putBoolean("w_$id", s.white).putInt("a_$id", s.transparency)
                 .putInt("f_$id", s.fg).putInt("d_$id", s.design).putBoolean("g_$id", s.glass)
+                .putInt("r_$id", s.corner).putBoolean("ga_$id", s.glassArt)
         } else {
             e.putBoolean(dk(k, "w"), s.white).putInt(dk(k, "a"), s.transparency)
                 .putInt(dk(k, "f"), s.fg).putInt(dk(k, "d"), s.design).putBoolean(dk(k, "g"), s.glass)
+                .putInt(dk(k, "r"), s.corner).putBoolean(dk(k, "ga"), s.glassArt)
             val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, KindConfig.provider(k)))
             ids.forEach { removeId(e, it) }
         }
@@ -130,7 +141,7 @@ object WidgetPrefs {
     }
 
     private fun removeId(e: android.content.SharedPreferences.Editor, id: Int) {
-        for (f in listOf("w", "t", "c", "d", "a", "f", "g")) e.remove("${f}_$id")
+        for (f in listOf("w", "t", "c", "d", "a", "f", "g", "r", "ga")) e.remove("${f}_$id")
     }
 
     fun alphaOf(transparency: Int): Int = ((100 - transparency) * 255 / 100).coerceIn(0, 255)

@@ -46,6 +46,9 @@ class ConfigActivity : Activity() {
     private var transparency = 0
     private var color = Color.WHITE
     private var design = 1
+    private var corner = -1
+    private var glassArt = true
+    private val glassButtons = mutableListOf<Button>()
 
     private val hsv = FloatArray(3)
     private var updatingUi = false
@@ -83,6 +86,8 @@ class ConfigActivity : Activity() {
         transparency = s.transparency
         color = s.fg
         design = s.design
+        corner = s.corner
+        glassArt = s.glassArt
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(buildPreview(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(220)))
@@ -97,7 +102,7 @@ class ConfigActivity : Activity() {
 
     private fun targetId(): Int? = widgetId.takeIf { it != AppWidgetManager.INVALID_APPWIDGET_ID }
     private fun resultIntent() = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass)
+    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt)
 
     // ---------- 미리보기 (실제 위젯 코드로 그림) ----------
     private fun buildPreview(): View {
@@ -163,6 +168,35 @@ class ConfigActivity : Activity() {
                 row.addView(b)
             }
             panel.addView(HorizontalScrollView(this).apply { addView(row) })
+            panel.addView(space(12))
+
+            // 그림 유리 효과 + 모서리 둥글기 (그림 테두리가 있는 디자인: 2×2 LP 재킷, 1×4 캠핑 파노라마)
+            panel.addView(text("그림 유리 효과", 16f))
+            panel.addView(text("풍경 그림이 유리 캡슐 안에 담긴 것처럼 반사광을 얹어요", 12f, 0xFFAAAAAA.toInt()))
+            val gRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            listOf("켜기" to true, "끄기" to false).forEach { (name, on) ->
+                val b = Button(this).apply {
+                    text = name
+                    setOnClickListener { glassArt = on; refreshSelectors(); renderPreview() }
+                }
+                glassButtons += b
+                gRow.addView(b, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            }
+            panel.addView(gRow)
+            panel.addView(space(8))
+            val cornerLabel = text("", 16f)
+            val shown = if (corner < 0) KindConfig.defaultCorner(kind) else corner
+            cornerLabel.text = "그림 모서리 둥글기  $shown%"
+            panel.addView(cornerLabel)
+            panel.addView(SeekBar(this).apply {
+                max = 50
+                progress = shown
+                setOnSeekBarChangeListener(listener { p ->
+                    corner = p
+                    cornerLabel.text = "그림 모서리 둥글기  $p%"
+                    renderPreview()
+                })
+            })
             panel.addView(space(12))
         }
 
@@ -288,6 +322,7 @@ class ConfigActivity : Activity() {
 
     private fun refreshSelectors() {
         designButtons.forEachIndexed { i, b -> b.alpha = if (i + 1 == design) 1f else 0.45f }
+        glassButtons.forEachIndexed { i, b -> b.alpha = if ((i == 0) == glassArt) 1f else 0.45f }
         val bgIndex = if (transparency >= 100) 0 else if (glass) 1 else if (white) 3 else 2
         bgButtons.forEachIndexed { i, b -> b.alpha = if (i == bgIndex) 1f else 0.45f }
     }

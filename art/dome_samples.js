@@ -74,19 +74,20 @@ function cloche(k, n, size = 560) {
 }
 
 // ③ 1×4 유리 캡슐: 알약 모양 유리관 안에 파노라마
-function capsule(k, n, W = 1400, H = 300) {
-  const id = `cp${k}${n}`, r = H / 2;
-  const shape = `M${r} 0 L${W - r} 0 A${r} ${r} 0 0 1 ${W - r} ${H} L${r} ${H} A${r} ${r} 0 0 1 ${r} 0 Z`;
+function capsule(k, n, W = 1400, H = 300, cornerPct = 30, fmt = 'pa') {
+  const id = `cp${k}${n}${fmt}${cornerPct}`, r = Math.min(W, H) * cornerPct / 100;
+  const shape = `M${r} 0 L${W - r} 0 A${r} ${r} 0 0 1 ${W} ${r} L${W} ${H - r} A${r} ${r} 0 0 1 ${W - r} ${H} L${r} ${H} A${r} ${r} 0 0 1 0 ${H - r} L0 ${r} A${r} ${r} 0 0 1 ${r} 0 Z`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="none">
   <defs><clipPath id="cl${id}"><path d="${shape}"/></clipPath>
     <linearGradient id="tb${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".18" stop-color="#fff" stop-opacity=".08"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset=".86" stop-color="#000" stop-opacity=".0"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient>
-    <linearGradient id="sd${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".06" stop-color="#fff" stop-opacity="0"/><stop offset=".94" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".3"/></linearGradient></defs>
+    <linearGradient id="sd${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="${fmt === 'pa' ? .06 : .08}" stop-color="#fff" stop-opacity="0"/><stop offset="${fmt === 'pa' ? .94 : .92}" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".3"/></linearGradient></defs>
   <g clip-path="url(#cl${id})">
-    <svg x="0" y="${-(350 * W / 1400 - H) / 2}" width="${W}" height="${350 * W / 1400}" viewBox="0 0 1400 350">${inner(k, n, 'pa')}</svg>
+    ${fmt === 'pa' ? `<svg x="0" y="${-(350 * W / 1400 - H) / 2}" width="${W}" height="${350 * W / 1400}" viewBox="0 0 1400 350">${inner(k, n, 'pa')}</svg>`
+                   : `<svg x="0" y="0" width="${W}" height="${H}" viewBox="0 0 560 560">${inner(k, n, 'sq')}</svg>`}
     <rect width="${W}" height="${H}" fill="url(#tb${id})"/><rect width="${W}" height="${H}" fill="url(#sd${id})"/>
-    <defs><filter id="bl${id}" x="-5%" y="-50%" width="110%" height="200%"><feGaussianBlur stdDeviation="${H * 0.015}"/></filter></defs>
-    <path d="M${r * 0.75} ${H * 0.14} Q${W * 0.32} ${H * 0.06} ${W * 0.6} ${H * 0.09}" stroke="#fff" stroke-opacity=".55" stroke-width="${H * 0.05}" stroke-linecap="round" fill="none" filter="url(#bl${id})"/>
-    <path d="M${W * 0.64} ${H * 0.09} L${W * 0.66} ${H * 0.09}" stroke="#fff" stroke-opacity=".5" stroke-width="${H * 0.045}" stroke-linecap="round" filter="url(#bl${id})"/>
+    <defs><filter id="bl${id}" x="-5%" y="-50%" width="110%" height="200%"><feGaussianBlur stdDeviation="${Math.min(W, H) * 0.015}"/></filter></defs>
+    <path d="M${Math.max(r * 0.75, W * 0.06)} ${Math.min(W, H) * 0.14} Q${W * 0.32} ${Math.min(W, H) * 0.06} ${W * 0.6} ${Math.min(W, H) * 0.09}" stroke="#fff" stroke-opacity=".55" stroke-width="${Math.min(W, H) * 0.05}" stroke-linecap="round" fill="none" filter="url(#bl${id})"/>
+    <path d="M${W * 0.64} ${Math.min(W, H) * 0.09} L${W * 0.66} ${Math.min(W, H) * 0.09}" stroke="#fff" stroke-opacity=".5" stroke-width="${Math.min(W, H) * 0.045}" stroke-linecap="round" filter="url(#bl${id})"/>
   </g>
   <path d="${shape}" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="3"/>
 </svg>`;
@@ -115,36 +116,43 @@ function w2x2(kind, wk, wall) {
       <div style="flex:1;text-align:center;line-height:32px">${W[wk][0]}</div><div style="flex:1;text-align:center;line-height:32px;font-weight:500">${W[wk][1]}</div><div style="flex:1;text-align:center;line-height:32px;font-weight:400;color:${sc}">${W[wk][2]}</div></div></div>`;
 }
 
-function w1x4(wk) {
+function w1x4(wk, shadow = false) {
   const [k, n] = [wk.split('_')[0], wk.endsWith('_n')];
   const c = n || k === 'rain' ? '#FBF1DC' : '#23262E', c2 = n || k === 'rain' ? '#E2D7C6' : '#3E434D';
   return `<div style="position:relative;width:340px;height:74px;flex:none">
-    <div style="position:absolute;inset:0">${capsule(k, n)}</div>
+    <div style="position:absolute;inset:0;${shadow ? 'filter:drop-shadow(0 6px 10px rgba(0,0,0,.28)) drop-shadow(0 1px 2px rgba(0,0,0,.18));' : ''}">${capsule(k, n, 1400, 300, 30)}</div>
     <div style="position:absolute;left:26px;top:11px;font:900 32px/1 'Noto Serif KR';color:${c}">10.2</div>
     <div style="position:absolute;left:28px;top:47px;font:500 10px/1 'Noto Sans KR';color:${c2}">금요일</div>
     <div style="position:absolute;right:26px;top:12px;font:900 28px/1 'Noto Serif KR';color:${c}">${W[wk][0]}</div>
     <div style="position:absolute;right:26px;top:47px;font:500 10px/1 'Noto Sans KR';color:${c2}">${W[wk][1]}&nbsp;&nbsp;${W[wk][2]}</div></div>`;
 }
 
-const band = (wall, inner, label, lc) => `<div style="background:${wall};border-radius:26px;padding:16px 10px 12px;margin:0 14px 12px">
-  <div style="display:flex;flex-wrap:wrap;gap:10px 14px;justify-content:center">${inner}</div>
+function sq2x2(wk, wall, shadow = false) {
+  const [k, n] = [wk.split('_')[0], wk.endsWith('_n')];
+  const tc = wall === WALL_G ? '#1a1c19' : '#fffbff', sc = wall === WALL_G ? 'rgba(26,28,25,.7)' : 'rgba(255,255,255,.75)';
+  const onArt = n || k === 'rain' ? '#FBF1DC' : '#23262E', onSub = n || k === 'rain' ? '#D9CFC0' : '#3E434D';
+  const D = 118, L = (170 - D) / 2;
+  return `<div style="position:relative;width:170px;height:170px;flex:none">
+    <div style="position:absolute;left:${L}px;top:8px;width:${D}px;height:${D}px;${shadow ? 'filter:drop-shadow(0 6px 10px rgba(0,0,0,.28)) drop-shadow(0 1px 2px rgba(0,0,0,.18));' : ''}">${capsule(k, n, 560, 560, 11, 'sq')}</div>
+    <div style="position:absolute;left:${L + D * 0.08}px;top:${8 + D * 0.07}px;font:900 ${D * 0.3}px/1 'Noto Serif KR';color:${onArt}">10.2</div>
+    <div style="position:absolute;left:${L + D * 0.09}px;top:${8 + D * 0.41}px;font:500 ${D * 0.085}px/1 'Noto Sans KR';color:${onSub}">금요일</div>
+    <div style="position:absolute;left:8px;right:8px;bottom:6px;height:32px;display:flex;font:700 13px 'Noto Sans KR';color:${tc};text-shadow:0 1px 6px ${wall === WALL_G ? 'rgba(255,255,255,.4)' : 'rgba(0,0,0,.35)'}">
+      <div style="flex:1;text-align:center;line-height:32px">${W[wk][0]}</div><div style="flex:1;text-align:center;line-height:32px;font-weight:500">${W[wk][1]}</div><div style="flex:1;text-align:center;line-height:32px;font-weight:400;color:${sc}">${W[wk][2]}</div></div></div>`;
+}
+
+const band = (wall, inner, label, lc) => `<div style="background:${wall};border-radius:26px;padding:16px 4px 12px;margin:0 12px 12px">
+  <div style="display:flex;flex-wrap:wrap;gap:10px 6px;justify-content:center">${inner}</div>
   <div style="text-align:center;font:700 12px 'Noto Sans KR';color:${lc};margin-top:8px;opacity:.85">${label}</div></div>`;
 const page = (title, sub, body) => `<!doctype html><meta charset=utf-8>${FONTS}<style>*{margin:0;box-sizing:border-box}body{width:390px;background:#f3f1f6;font-family:'Noto Sans KR'}</style>
   <div style="padding:30px 22px 16px"><div style="font:900 24px/1.3 'Noto Sans KR';color:#1b1b1f">${title}</div><div style="font:500 13px/1.5 'Noto Sans KR';color:#555;margin-top:6px">${sub}</div></div>${body}<div style="height:10px"></div>`;
 
+const cap = (t) => `<div style="width:100%;text-align:center;font:700 11px 'Noto Sans KR';color:rgba(255,255,255,.85);margin:2px 0 -4px">${t}</div>`;
+const capD = (t) => `<div style="width:100%;text-align:center;font:700 11px 'Noto Sans KR';color:rgba(26,28,25,.75);margin:2px 0 -4px">${t}</div>`;
 const boards = {
-  sample_globe: page('샘플 A · 스노우볼', '캠핑장이 유리구 안에 담긴 느낌 (원목 받침 + 놋쇠 띠)',
-    band(WALL_L, w2x2('globe', 'clear_d', WALL_L) + w2x2('globe', 'clear_n', WALL_L), '노을 배경화면', '#fff') +
-    band(WALL_D, w2x2('globe', 'snow_n', WALL_D) + w2x2('globe', 'rain_n', WALL_D), '밤하늘 배경화면', '#fff') +
-    band(WALL_G, w2x2('globe', 'cloudy_d', WALL_G) + w2x2('globe', 'snow_d', WALL_G), '숲 배경화면', '#1a1c19')),
-  sample_cloche: page('샘플 B · 유리 클로슈 돔', '종 모양 유리 덮개 안의 캠핑장 (원목 접시 + 유리 손잡이)',
-    band(WALL_L, w2x2('cloche', 'clear_d', WALL_L) + w2x2('cloche', 'clear_n', WALL_L), '노을 배경화면', '#fff') +
-    band(WALL_D, w2x2('cloche', 'snow_n', WALL_D) + w2x2('cloche', 'rain_n', WALL_D), '밤하늘 배경화면', '#fff') +
-    band(WALL_G, w2x2('cloche', 'cloudy_d', WALL_G) + w2x2('cloche', 'snow_d', WALL_G), '숲 배경화면', '#1a1c19')),
-  sample_capsule: page('샘플 C · 1×4 유리 캡슐', '알약 모양 유리관 안의 캠핑장 파노라마 (위쪽 반사광 + 양 끝 굴절)',
-    band(WALL_L, w1x4('clear_d') + w1x4('clear_n'), '노을 배경화면', '#fff') +
-    band(WALL_D, w1x4('snow_n') + w1x4('rain_d'), '밤하늘 배경화면', '#fff') +
-    band(WALL_G, w1x4('cloudy_d') + w1x4('snow_d'), '숲 배경화면', '#1a1c19')),
+  sample_capsule: page('유리 캡슐 · 그림자 비교', '모서리 곡률은 기존 그대로 (2×2 11%, 1×4 30%). 왼쪽/위 = 그림자 없음, 오른쪽/아래 = 그림자 있음',
+    band(WALL_L, cap('2×2 · 그림자 없음 / 있음') + sq2x2('clear_d', WALL_L) + sq2x2('clear_d', WALL_L, true) + cap('1×4 · 그림자 없음') + w1x4('clear_d') + cap('1×4 · 그림자 있음') + w1x4('clear_d', true), '노을 배경화면', '#fff') +
+    band(WALL_D, cap('2×2 · 그림자 없음 / 있음') + sq2x2('snow_n', WALL_D) + sq2x2('snow_n', WALL_D, true) + cap('1×4 · 그림자 없음') + w1x4('clear_n') + cap('1×4 · 그림자 있음') + w1x4('clear_n', true), '밤하늘 배경화면', '#fff') +
+    band(WALL_G, capD('2×2 · 그림자 없음 / 있음') + sq2x2('cloudy_d', WALL_G) + sq2x2('cloudy_d', WALL_G, true) + capD('1×4 · 그림자 없음') + w1x4('snow_d') + capD('1×4 · 그림자 있음') + w1x4('snow_d', true), '숲 배경화면', '#1a1c19')),
 };
 
 (async () => {
