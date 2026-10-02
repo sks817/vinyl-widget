@@ -124,7 +124,9 @@ class BigScene(
                 })
                 c.restore()
                 if (glassArt) GlassArt.draw(c, r, rad)
-                val h = r.height(); val m = h * 0.1f
+                val h = r.height()
+                // 모서리 곡률이 크면(최대 50%) 글자를 그만큼 안쪽으로
+                val m = h * 0.1f + GlassArt.cornerInset(rad, h * 0.06f)
                 top(md, r.left + m, r.top + h * 0.06f, p(h * 0.25f, SERIF, art.main))
                 top(wk, r.left + m * 1.04f, r.top + h * 0.35f, p(small(h * 0.085f), MED, art.sub))
                 if (msg != null) top(msg, r.right - m, r.top + h * 0.1f, p(small(h * 0.08f), BOLD, art.main, Paint.Align.RIGHT))
@@ -134,7 +136,8 @@ class BigScene(
                 }
                 val white = if (customFg) fg else 0xFFFFFFFF.toInt()
                 val soft = if (customFg) sub else 0xCCFFFFFF.toInt()
-                hourlyRow(d, RectF(r.left + m * 0.5f, rowTop, r.right - m * 0.5f, r.bottom - h * 0.04f), white, soft)
+                val rowIn = h * 0.05f + GlassArt.cornerInset(rad, h * 0.1f)
+                hourlyRow(d, RectF(r.left + rowIn, rowTop, r.right - rowIn, r.bottom - h * 0.04f), white, soft)
             }
             CHAR -> {
                 val col = if (cardColor != 0) CharacterLayouts.cardColors(cardColor) else CharacterLayouts.cardColors(d)

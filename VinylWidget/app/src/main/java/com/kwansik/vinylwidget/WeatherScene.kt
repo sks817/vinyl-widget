@@ -181,7 +181,7 @@ class WeatherScene(
                 })
                 c.restore()
                 if (glassArt) GlassArt.draw(c, card, rad)
-                val m = S * 0.08f
+                val m = S * 0.08f + GlassArt.cornerInset(rad, S * 0.065f)   // 곡률이 크면 글자를 안쪽으로
                 art.top(md, card.left + m, card.top + S * 0.065f, ap(S * 0.22f, SERIF, art.main))
                 art.top(wk, card.left + m * 1.06f, card.top + S * 0.30f, ap(S * 0.075f, SANS_M, art.sub))
                 // 아래 어둠막 위: 기본은 흰 글자, 직접 고른 색이면 그 색
