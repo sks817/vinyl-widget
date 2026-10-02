@@ -14,8 +14,8 @@ import java.time.ZoneId
 /** 날씨·날짜 위젯. 그림을 누르면 기본 캘린더 앱, 아래 날씨 줄을 누르면 새로고침 */
 object WeatherWidget {
 
-    val DESIGN_NAMES = arrayOf("LP 재킷", "불 켜진 텐트", "하늘 원", "큰 날짜 + 텐트", "미니멀", "다이얼", "달력")
-    val WIDE_DESIGN_NAMES = arrayOf("캠핑 파노라마", "텐트 + 날짜", "심플")
+    val DESIGN_NAMES = arrayOf("LP 재킷", "불 켜진 텐트", "하늘 원", "큰 날짜 + 텐트", "미니멀", "다이얼", "달력", "캐릭터")
+    val WIDE_DESIGN_NAMES = arrayOf("캠핑 파노라마", "텐트 + 날짜", "심플", "캐릭터")
 
     fun renderAll(ctx: Context) {
         try {
@@ -45,9 +45,9 @@ object WeatherWidget {
         val rv = RemoteViews(ctx.packageName, R.layout.weather_canvas)
         Palette.applyBackground(rv, style)
         val scene = WeatherScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style),
-            Palette.shadow(ctx, style))
+            Palette.shadow(ctx, style), style.quirky)
         scene.draw(style.design.coerceIn(1, DESIGN_NAMES.size), d, style.corner, style.glassArt,
-            style.artShadow && Palette.bgHidden(style))
+            style.artShadow && Palette.bgHidden(style), style.point)
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
         rv.setOnClickPendingIntent(R.id.w_tap_refresh, refreshIntent(ctx))
@@ -64,7 +64,7 @@ object WeatherWidget {
         val ownCard = simple && !style.glass
         Palette.applyBackground(rv, style, visible = !ownCard)
         val main = Palette.text(ctx, style)
-        val scene = WideScene(ctx, wDp, hDp, main, Palette.sub(ctx, style), Palette.accent(ctx, style), Palette.shadow(ctx, style))
+        val scene = WideScene(ctx, wDp, hDp, main, Palette.sub(ctx, style), Palette.accent(ctx, style), Palette.shadow(ctx, style), style.quirky)
         scene.draw(design, d, if (ownCard) WidgetPrefs.alphaOf(style.transparency) else 0, style.white,
             style.corner, style.glassArt, style.artShadow && Palette.bgHidden(style))
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
@@ -75,9 +75,9 @@ object WeatherWidget {
             val dip = android.util.TypedValue.COMPLEX_UNIT_DIP
             rv.setViewVisibility(R.id.w_time, android.view.View.VISIBLE)
             // 그림 쪽 기준(오른쪽 여백 0.34h, 큰 글자 0.36h, 아래쪽 줄 중심 0.66h)과 똑같이 맞춤
-            rv.setTextViewTextSize(R.id.w_time, dip, h * 0.40f)
-            rv.setViewLayoutMargin(R.id.w_time, RemoteViews.MARGIN_END, h * 0.30f, dip)
-            rv.setViewLayoutMargin(R.id.w_time, RemoteViews.MARGIN_BOTTOM, h * 0.125f, dip)
+            rv.setTextViewTextSize(R.id.w_time, dip, h * 0.38f)
+            rv.setViewLayoutMargin(R.id.w_time, RemoteViews.MARGIN_END, h * 0.22f, dip)
+            rv.setViewLayoutMargin(R.id.w_time, RemoteViews.MARGIN_BOTTOM, h * 0.17f, dip)
             if (ownCard) {                                        // 회색 카드 글자는 카드에 맞춘 고정 색
                 rv.setTextColor(R.id.w_time, if (style.white) 0xFF1E2128.toInt() else 0xFFFFFFFF.toInt())
             } else {

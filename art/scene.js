@@ -58,10 +58,43 @@ function bellTent(cx, base, w, p, lit, snow, uid, glow = true) {
   for (const t of [-0.3, 0.3]) s += `<path d="M${cx} ${apex} Q${cx + w * t * 0.5} ${roofBase - h * 0.2} ${cx + w * t} ${roofBase + h * 0.01}" stroke="${p.canvasShade}" stroke-width="${w * 0.006}" fill="none" opacity=".9"/>`;
   // 처마 그림자 띠
   s += `<path d="M${rl} ${roofBase} Q${cx} ${roofBase + h * 0.035} ${rr} ${roofBase} L${R} ${roofBase + h * 0.03} Q${cx} ${roofBase + h * 0.06} ${L} ${roofBase + h * 0.03} Z" fill="#000" opacity=".08"/>`;
-  // 문: 삼각형으로 걷어 올린 입구
+  // 불 켜진 텐트: 안쪽 랜턴 불빛 + 캔버스 천에 비치는 가재도구 그림자(간이침대, 의자, 테이블과 주전자, 매단 랜턴)
   const dw = w * 0.2, dTop = roofBase - h * 0.16;
-  s += `<path d="M${cx} ${dTop} L${cx + dw / 2} ${base} L${cx - dw / 2} ${base} Z" fill="${lit ? p.door : '#6b5638'}" opacity="${lit ? 1 : 0.55}"/>`;
-  if (lit) s += `<path d="M${cx} ${dTop} L${cx + dw / 2} ${base} L${cx - dw / 2} ${base} Z" fill="#fff8e0" opacity=".35"/>`;
+  if (lit) {
+    const body = `<path d="M${cx} ${apex} Q${cx + w * 0.2} ${roofBase - h * 0.28} ${rr} ${roofBase} L${R} ${roofBase} L${R - w * 0.01} ${base} L${L + w * 0.01} ${base} L${L} ${roofBase} L${rl} ${roofBase} Q${cx - w * 0.2} ${roofBase - h * 0.28} ${cx} ${apex} Z"/>`;
+    const ink = '#8a4a1c', u = w * 0.01;
+    s += `<defs><clipPath id="${g}b">${body}</clipPath>
+      <filter id="${g}f" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="${u * 0.7}"/></filter>
+      <radialGradient id="${g}h" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fffbe6" stop-opacity=".75"/><stop offset=".55" stop-color="#ffe2a0" stop-opacity=".25"/><stop offset="1" stop-color="#ffe2a0" stop-opacity="0"/></radialGradient></defs>`;
+    s += `<g clip-path="url(#${g}b)">`;
+    // 안에 매단 랜턴이 만드는 밝은 곳
+    s += `<ellipse cx="${cx + w * 0.1}" cy="${roofBase - h * 0.06}" rx="${w * 0.42}" ry="${h * 0.42}" fill="url(#${g}h)"/>`;
+    s += `<g fill="${ink}" opacity=".26" filter="url(#${g}f)">`;
+    // 왼쪽: 간이침대 + 베개
+    s += `<rect x="${L + w * 0.07}" y="${base - h * 0.105}" width="${w * 0.26}" height="${h * 0.04}" rx="${u}"/>`;
+    s += `<rect x="${L + w * 0.08}" y="${base - h * 0.065}" width="${u * 1.4}" height="${h * 0.06}"/><rect x="${L + w * 0.31}" y="${base - h * 0.065}" width="${u * 1.4}" height="${h * 0.06}"/>`;
+    s += `<rect x="${L + w * 0.075}" y="${base - h * 0.14}" width="${w * 0.07}" height="${h * 0.04}" rx="${u * 1.5}"/>`;
+    // 왼쪽 벽: 걸어둔 기타
+    s += `<ellipse cx="${L + w * 0.2}" cy="${base - h * 0.2}" rx="${w * 0.035}" ry="${h * 0.045}"/><rect x="${L + w * 0.193}" y="${base - h * 0.33}" width="${u * 1.3}" height="${h * 0.1}"/>`;
+    // 오른쪽: 테이블 + 주전자 + 머그
+    s += `<rect x="${cx + w * 0.16}" y="${base - h * 0.12}" width="${w * 0.24}" height="${u * 1.4}" rx="${u * 0.5}"/>`;
+    s += `<rect x="${cx + w * 0.18}" y="${base - h * 0.12}" width="${u * 1.2}" height="${h * 0.12}"/><rect x="${cx + w * 0.375}" y="${base - h * 0.12}" width="${u * 1.2}" height="${h * 0.12}"/>`;
+    s += `<path d="M${cx + w * 0.22} ${base - h * 0.12} q0 ${-h * 0.06} ${w * 0.04} ${-h * 0.06} q${w * 0.04} 0 ${w * 0.04} ${h * 0.06} Z"/><rect x="${cx + w * 0.235}" y="${base - h * 0.2}" width="${w * 0.03}" height="${u * 1.2}" rx="${u * 0.5}"/>`;
+    s += `<rect x="${cx + w * 0.32}" y="${base - h * 0.155}" width="${w * 0.035}" height="${h * 0.035}" rx="${u * 0.6}"/>`;
+    s += `</g></g>`;
+  }
+  // 문: 삼각형으로 걷어 올린 입구 (불 켜지면 안쪽 러그·스툴·랜턴이 살짝 보임)
+  if (lit) {
+    s += `<defs><linearGradient id="${g}d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4d2"/><stop offset="1" stop-color="#ffc472"/></linearGradient>
+      <clipPath id="${g}dc"><path d="M${cx} ${dTop} L${cx + dw / 2} ${base} L${cx - dw / 2} ${base} Z"/></clipPath></defs>`;
+    s += `<g clip-path="url(#${g}dc)"><rect x="${cx - dw}" y="${dTop}" width="${dw * 2}" height="${base - dTop}" fill="url(#${g}d)"/>`;
+    s += `<ellipse cx="${cx}" cy="${base}" rx="${dw * 0.42}" ry="${h * 0.035}" fill="#d9663f" opacity=".75"/>`;
+    s += `<rect x="${cx - dw * 0.3}" y="${base - h * 0.085}" width="${dw * 0.32}" height="${h * 0.018}" rx="${h * 0.006}" fill="#a3622f" opacity=".8"/>`;
+    s += `<rect x="${cx - dw * 0.27}" y="${base - h * 0.07}" width="${dw * 0.05}" height="${h * 0.06}" fill="#a3622f" opacity=".7"/><rect x="${cx - dw * 0.04}" y="${base - h * 0.07}" width="${dw * 0.05}" height="${h * 0.06}" fill="#a3622f" opacity=".7"/>`;
+    s += `<circle cx="${cx + dw * 0.08}" cy="${dTop + (base - dTop) * 0.42}" r="${dw * 0.09}" fill="#fff" opacity=".9"/><circle cx="${cx + dw * 0.08}" cy="${dTop + (base - dTop) * 0.42}" r="${dw * 0.22}" fill="#fff6c8" opacity=".35"/></g>`;
+  } else {
+    s += `<path d="M${cx} ${dTop} L${cx + dw / 2} ${base} L${cx - dw / 2} ${base} Z" fill="#6b5638" opacity=".55"/>`;
+  }
   // 걷어 묶은 문 자락
   s += `<path d="M${cx} ${dTop} L${cx - dw / 2} ${base} L${cx - dw * 0.78} ${base} Q${cx - dw * 0.45} ${roofBase} ${cx} ${dTop} Z" fill="${p.canvasShade}"/>`;
   s += `<path d="M${cx} ${dTop} L${cx + dw / 2} ${base} L${cx + dw * 0.78} ${base} Q${cx + dw * 0.45} ${roofBase} ${cx} ${dTop} Z" fill="${p.canvasShade}" opacity=".85"/>`;
@@ -166,7 +199,7 @@ function scene(kind, night, fmt) {
   const dims = { sq: [560, 560], ci: [560, 560], pa: [1400, 350] }[fmt];
   const [W, H] = dims, U = Math.min(W, H) / 560;   // 기준 단위
   const pa = fmt === 'pa';
-  const horizon = pa ? H * 0.76 : H * 0.70;
+  const horizon = pa ? H * 0.76 : fmt === 'sq' ? H * 0.6 : H * 0.70;
   const id = `${key}${fmt}`;
   let s = `<defs><linearGradient id="sky${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.sky[0]}"/><stop offset=".62" stop-color="${p.sky[1]}"/><stop offset="1" stop-color="${p.sky[2]}"/></linearGradient>
     <linearGradient id="gr${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.ground[0]}"/><stop offset="1" stop-color="${p.ground[1]}"/></linearGradient>
@@ -201,7 +234,7 @@ function scene(kind, night, fmt) {
   for (let i = 0; i < (pa ? 34 : 14); i++) {
     const x = r() * W, hh = treeH * (0.55 + r() * 0.5);
     if (Math.abs(x - campX) < (pa ? W * 0.08 : W * 0.16)) continue;   // 텐트 뒤는 비워 둠
-    if (pa && Math.abs(x - campX) > W * 0.22) continue;               // 좌우 글자 자리는 비워 둠
+    if (pa && Math.abs(x - campX) > W * 0.15) continue;               // 좌우 글자 자리는 비워 둠
     s += pine(x, horizon + H * 0.01, hh, p.pine2, snowy);
   }
   // 땅
@@ -209,12 +242,12 @@ function scene(kind, night, fmt) {
 
   // 캠프: 텐트 + 가랜드 + 모닥불 + 의자 + 앞쪽 소나무
   const tw = pa ? H * 0.46 : W * 0.34;
-  const base = pa ? horizon + H * 0.03 : horizon + H * 0.12;
+  const base = pa ? horizon + H * 0.03 : fmt === 'sq' ? horizon + H * 0.1 : horizon + H * 0.12;
   const t = bellTent(campX, base, tw, p, lit, snowy, id);
   const ci = fmt === 'ci';
   const fx = campX - tw * (pa ? 0.9 : ci ? 0.72 : 0.85), fs = tw * (pa ? 0.15 : 0.14);
   // 오른쪽 큰 소나무 + 가랜드
-  const px = campX + tw * (pa ? 1.25 : 0.95), ph = tw * (pa ? 1.3 : 1.15);
+  const px = campX + tw * (pa ? 1.0 : 0.95), ph = tw * (pa ? 1.05 : 1.15);
   s += pine(px, base + tw * 0.02, ph, p.pine, snowy);
   s += t.svg;
   s += garland(campX, t.apex - t.h * 0.02, px - ph * 0.04, base - ph * 0.62, tw * 0.12, pa ? 9 : 8, lit, 3 * (pa ? H / 350 : U));

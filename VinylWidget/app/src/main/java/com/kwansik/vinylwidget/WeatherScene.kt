@@ -22,7 +22,7 @@ import kotlin.math.min
 class WeatherScene(
     private val ctx: Context, wDp: Float, hDp: Float,
     private val fg: Int, private val sub: Int = fg, private val accent: Int = fg,
-    private val shadow: Int = 0
+    private val shadow: Int = 0, private val quirky: Boolean = true
 ) {
     /** 바탕 없이 배경화면 위에 쓰는 글자(fg/sub 색)에만 옅은 그림자 */
     private fun Paint.shade(): Paint {
@@ -89,6 +89,31 @@ class WeatherScene(
         c.drawBitmap(b, null, dst, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
     }
 
+    /** 날씨 아이콘: 병맛 테마면 캐릭터(색 그대로), 아니면 선 아이콘(tint 색) */
+    private fun wIcon(d: WeatherData, cx: Float, cy: Float, size: Float, tint: Int) {
+        if (quirky) { funIcon(d.iconFun(), cx, cy, size); return }
+        val s = size * 0.7f
+        ctx.getDrawable(d.icon())?.mutate()?.let {
+            it.setTint(tint); it.setBounds((cx - s / 2).toInt(), (cy - s / 2).toInt(), (cx + s / 2).toInt(), (cy + s / 2).toInt()); it.draw(c)
+        }
+    }
+
+    /** 캐릭터 날씨 아이콘 (색 그대로) */
+    private fun funIcon(res: Int, cx: Float, cy: Float, size: Float) {
+        Assets.get(ctx, res)?.let {
+            c.drawBitmap(it, null, RectF(cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2), Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+        }
+    }
+
+    /** 그림을 상자에 꽉 채우고 넘치는 쪽은 가운데 기준으로 잘라냄 (center-crop) */
+    private fun cover(res: Int, dst: RectF) {
+        val b = Assets.get(ctx, res) ?: return
+        val ar = dst.width() / dst.height(); val br = b.width.toFloat() / b.height
+        val src = if (br > ar) { val w = (b.height * ar).toInt(); android.graphics.Rect((b.width - w) / 2, 0, (b.width + w) / 2, b.height) }
+                  else { val h = (b.width / ar).toInt(); android.graphics.Rect(0, (b.height - h) / 2, b.width, (b.height + h) / 2) }
+        c.drawBitmap(b, src, dst, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+    }
+
     /** 원본 비율을 지키며 상자 안에 맞춤 (아래 가운데 정렬) */
     private fun fitBottom(res: Int, box: RectF): RectF {
         val b = Assets.get(ctx, res) ?: return box
@@ -102,25 +127,25 @@ class WeatherScene(
     private fun bottomRow(d: WeatherData) {
         val y = H - pad - row / 2
         val xs = FloatArray(3) { pad + (W - pad * 2) * (it + 0.5f) / 3f }
-        val size = 13f * k
         val msg = d.message()
-        if (msg != null) { textMid(msg, W / 2, y, size, SANS, fg); return }
-        // 아이콘 + 기온
+        if (msg != null) { textMid(msg, W / 2, y, 14f * k, SANS, fg); return }
+        // 캐릭터 + 기온(크게) | 날씨 | 최저/최고(흐리게) → 기온이 가장 먼저 보이게
         val t = d.tempText()
-        val p = Paint().apply { textSize = size; typeface = SANS }
-        val tw = p.measureText(t); val ic = size * 1.15f; val gap = size * 0.3f
+        val tSize = 19f * k
+        val p = Paint().apply { textSize = tSize; typeface = SERIF }
+        val tw = p.measureText(t); val ic = row * 0.82f; val gap = tSize * 0.15f
         val start = xs[0] - (ic + gap + tw) / 2
-        ctx.getDrawable(d.icon())?.mutate()?.let {
-            it.setTint(accent); it.setBounds(start.toInt(), (y - ic / 2).toInt(), (start + ic).toInt(), (y + ic / 2).toInt()); it.draw(c)
-        }
-        // 기온은 진하게, 날씨는 보통, 최저/최고는 한 단계 흐리게 → 정보 위계가 보이게
-        textMid(t, start + ic + gap + tw / 2, y, size, SANS, fg)
-        textMid(d.cond(), xs[1], y, size, SANS_M, fg)
-        textMid(d.rangeText().replace(" ", ""), xs[2], y, size, SANS_R, sub)
+        wIcon(d, start + ic / 2, y, ic, accent)
+        textMid(t, start + ic + gap + tw / 2, y, tSize, SERIF, fg)
+        textMid(d.cond(), xs[1], y, 14f * k, SANS_M, fg)
+        textMid(d.rangeText().replace(" ", ""), xs[2], y, 13f * k, SANS_R, sub)
     }
 
     /** corner = 그림 모서리(짧은 변의 %, -1이면 기본 11), glassArt = 유리 캡슐 효과 */
-    fun draw(design: Int, d: WeatherData, corner: Int = -1, glassArt: Boolean = false, artShadow: Boolean = false) {
+    fun draw(
+        design: Int, d: WeatherData, corner: Int = -1, glassArt: Boolean = false, artShadow: Boolean = false,
+        point: Int = WidgetStyle.DEFAULT_POINT
+    ) {
         val today = LocalDate.now()
         val md = "${today.monthValue}.${today.dayOfMonth}"
         val wk = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.KOREAN)
@@ -131,19 +156,50 @@ class WeatherScene(
         val darkText = !night && kind != "rain"                 // 밝은 낮 하늘엔 진한 글자
 
         when (design) {
-            1 -> { // LP 재킷: 날씨·시간에 따라 그림이 바뀜 (맑음·구름·비·눈 × 낮·밤)
+            1 -> { // LP 재킷: 그림이 위젯을 꽉 채우는 카드. 날짜는 하늘(왼쪽 위), 기온은 아래 어둠막 위에 크게
+                val inset = if (artShadow) 4f * k else 0f
+                val card = RectF(inset, inset, W - inset, H - inset)
+                val S = min(card.width(), card.height())
+                val rad = S * (if (corner < 0) 11 else corner) / 100f
+                if (artShadow) GlassArt.shadow(c, card, rad)
                 c.save()
-                val rad = D * (if (corner < 0) 11 else corner) / 100f
-                if (artShadow) GlassArt.shadow(c, sq, rad)
-                c.clipPath(android.graphics.Path().apply { addRoundRect(sq, rad, rad, android.graphics.Path.Direction.CW) })
-                asset(Scenes.jacket(kind, night), sq)
+                c.clipPath(android.graphics.Path().apply { addRoundRect(card, rad, rad, android.graphics.Path.Direction.CW) })
+                cover(Scenes.jacket(kind, night), card)
+                // 아래쪽 절반: 위에서 아래로 짙어지는 어둠막 → 흰 기온 글자가 어떤 그림 위에서도 읽힘
+                val scrimTop = card.bottom - card.height() * 0.52f
+                c.drawRect(card.left, scrimTop, card.right, card.bottom, Paint().apply {
+                    shader = android.graphics.LinearGradient(0f, scrimTop, 0f, card.bottom,
+                        intArrayOf(0x00000000, 0x4D000000, 0x9E000000.toInt()), floatArrayOf(0f, 0.45f, 1f), android.graphics.Shader.TileMode.CLAMP)
+                })
                 c.restore()
-                if (glassArt) GlassArt.draw(c, sq, rad)
+                if (glassArt) GlassArt.draw(c, card, rad)
                 val main = if (darkText) 0xFF23262E.toInt() else CREAM
                 val sub = if (darkText) 0xFF3E434D.toInt() else CREAM_SUB
-                text(md, sq.left + D * 0.08f, sq.top + D * 0.07f, D * 0.30f, SERIF, main)
-                text(wk, sq.left + D * 0.09f, sq.top + D * 0.41f, D * 0.085f, SANS_M, sub)
-                bottomRow(d)
+                val m = S * 0.08f
+                text(md, card.left + m, card.top + S * 0.065f, S * 0.22f, SERIF, main)
+                text(wk, card.left + m * 1.06f, card.top + S * 0.30f, S * 0.075f, SANS_M, sub)
+                val white = 0xFFFFFFFF.toInt()
+                val sh = 0x59000000
+                val bottom = card.bottom - S * 0.07f
+                val msg = d.message()
+                if (msg != null) {
+                    val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.08f; typeface = SANS; color = white; setShadowLayer(S * 0.02f, 0f, S * 0.005f, sh) }
+                    c.drawText(msg, card.left + m, bottom, p)
+                } else {
+                    // 왼쪽 아래: 기온 (가장 크게)
+                    val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.23f; typeface = SERIF; color = white; setShadowLayer(S * 0.025f, 0f, S * 0.006f, sh) }
+                    c.drawText(d.tempText(), card.left + m, bottom, tp)
+                    // 오른쪽 아래: 캐릭터 / 날씨 / 최저·최고 (오른쪽 정렬)
+                    val right = card.right - m
+                    val rp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.072f; typeface = SANS_R; color = 0xD9FFFFFF.toInt(); textAlign = Paint.Align.RIGHT; setShadowLayer(S * 0.02f, 0f, S * 0.005f, sh) }
+                    val cp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.085f; typeface = SANS; color = white; textAlign = Paint.Align.RIGHT; setShadowLayer(S * 0.02f, 0f, S * 0.005f, sh) }
+                    val range = d.rangeText().replace(" ", "")
+                    c.drawText(range, right, bottom, rp)
+                    val condBase = bottom - S * 0.095f
+                    c.drawText(d.cond(), right, condBase, cp)
+                    val ic = S * 0.2f
+                    wIcon(d, right - ic / 2 + S * 0.02f, condBase - S * 0.085f - ic / 2, ic, white)
+                }
             }
             2 -> { // 불 켜진 텐트: 날짜를 텐트 천 위에
                 val box = RectF(areaL, sq.top, areaL + areaW, sq.bottom)
@@ -170,10 +226,51 @@ class WeatherScene(
                 asset(icon, fitBottom(icon, box))
                 bottomRow(d)
             }
+            8 -> { // 캐릭터 (병맛): 큰 캐릭터 + 말풍선 한마디 + 큰 기온
+                val box = RectF(pad, pad, W - pad, H - pad)
+                val S = min(box.width(), box.height())
+                val ink = 0xFF2B2622.toInt()
+                val black = Typeface.create("sans-serif-black", Typeface.NORMAL)
+                // 왼쪽 위: 날짜·요일
+                text(md, box.left + S * 0.04f, box.top + S * 0.03f, S * 0.2f, black, fg)
+                text(wk, box.left + S * 0.05f, box.top + S * 0.25f, S * 0.08f, SANS_M, sub)
+                // 오른쪽 위: 큰 캐릭터 (병맛 테마를 꺼도 이 디자인은 캐릭터)
+                val cs = S * 0.54f
+                funIcon(d.iconFun(), box.right - cs / 2, box.top + cs / 2 - S * 0.02f, cs)
+                // 가운데: 말풍선 (꼬리는 캐릭터 쪽)
+                val q = Quips.of(d)
+                val qp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.074f; typeface = SANS; color = ink; textAlign = Paint.Align.CENTER }
+                val bw = min(box.width(), qp.measureText(q) + S * 0.12f); val bh = S * 0.15f
+                val bt = box.top + S * 0.56f
+                val bubble = RectF(box.centerX() - bw / 2, bt, box.centerX() + bw / 2, bt + bh)
+                val fillP = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() }
+                val lineP = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ink; style = Paint.Style.STROKE; strokeWidth = S * 0.014f; strokeJoin = Paint.Join.ROUND }
+                val tail = android.graphics.Path().apply {
+                    moveTo(bubble.right - bw * 0.3f, bubble.top + 1); lineTo(bubble.right - bw * 0.12f, bubble.top - S * 0.07f); lineTo(bubble.right - bw * 0.18f, bubble.top + 1); close()
+                }
+                c.drawPath(tail, fillP); c.drawPath(tail, lineP)
+                c.drawRoundRect(bubble, bh / 2, bh / 2, fillP); c.drawRoundRect(bubble, bh / 2, bh / 2, lineP)
+                c.drawRect(bubble.right - bw * 0.29f, bubble.top + lineP.strokeWidth / 2, bubble.right - bw * 0.19f, bubble.top + lineP.strokeWidth * 1.5f, fillP)
+                val fm = qp.fontMetrics
+                c.drawText(q, bubble.centerX(), bubble.centerY() - (fm.ascent + fm.descent) / 2, qp)
+                // 아래: 기온(크게) + 날씨·최저/최고
+                val msg = d.message()
+                val by = box.bottom - S * 0.02f
+                if (msg != null) {
+                    text(msg, box.left + S * 0.04f, by - S * 0.12f, S * 0.08f, SANS, fg)
+                } else {
+                    val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.2f; typeface = black; color = fg }.shade()
+                    c.drawText(d.tempText(), box.left + S * 0.04f, by, tp)
+                    val rp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.075f; typeface = SANS_M; color = sub; textAlign = Paint.Align.RIGHT }.shade()
+                    c.drawText(d.rangeText().replace(" ", ""), box.right - S * 0.02f, by, rp)
+                    val cp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.085f; typeface = SANS; color = fg; textAlign = Paint.Align.RIGHT }.shade()
+                    c.drawText(d.cond(), box.right - S * 0.02f, by - S * 0.1f, cp)
+                }
+            }
             else -> { // 기존 디자인(미니멀·다이얼·달력)은 정사각 칸 가운데에
                 val legacy = when (design) { 5 -> 1; 6 -> 3; else -> 5 }
                 val s = (min(W, H) - pad * 2).toInt().coerceAtLeast(10)
-                val p = WeatherPainter(ctx, s, fg)
+                val p = WeatherPainter(ctx, s, fg, point, quirky)
                 p.draw(legacy, d)
                 c.drawBitmap(p.bitmap, (W - s) / 2, (H - s) / 2, Paint(Paint.FILTER_BITMAP_FLAG))
             }
@@ -212,5 +309,24 @@ object Assets {
         BitmapFactory.decodeResource(ctx.resources, res)?.also { cache[res] = it }
     } catch (e: Exception) {
         null
+    }
+}
+
+/** 병맛 테마 한마디: 날씨마다 캐릭터가 하는 말 */
+object Quips {
+    fun of(d: WeatherData): String {
+        val n = d.isNight()
+        val c = d.code ?: return "날씨 알아보는 중..."
+        return when (c) {
+            0, 1 -> if (n) "꿀잠 예약 완료" else "광합성 하기 딱 좋은 날"
+            2 -> if (n) "구름이 달 가리는 중" else "해가 구름 뒤에서 눈치 봄"
+            3 -> "하늘도 오늘은 귀찮대"
+            45, 48 -> "앞이 하나도 안 보여요.."
+            in 51..57 -> "찔끔찔끔.. 우산 살짝"
+            in 61..67, in 80..82 -> "하늘이 운다 ㅠㅠ 우산!"
+            in 71..77, 85, 86 -> "덜덜.. 패딩 필수"
+            in 95..99 -> "하늘이 단단히 화났다"
+            else -> "오늘도 무사히"
+        }
     }
 }

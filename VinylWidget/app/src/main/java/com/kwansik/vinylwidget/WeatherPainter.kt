@@ -22,7 +22,11 @@ import kotlin.math.sin
  * 모든 디자인은 170×170 단위 정사각형 좌표로 설계했고, 실제 픽셀 크기에 맞춰 확대/축소됨
  * → 레코드 위젯처럼 칸 크기에 따라 같이 커지고 작아짐.
  */
-class WeatherPainter(private val ctx: Context, size: Int, private val fg: Int) {
+class WeatherPainter(
+    private val ctx: Context, size: Int, private val fg: Int,
+    private val point: Int = WidgetStyle.DEFAULT_POINT,      // 달력 윗부분 색
+    private val quirky: Boolean = false                       // 병맛 테마: 날씨 아이콘을 캐릭터로
+) {
 
     val bitmap: Bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     private val c = Canvas(bitmap)
@@ -68,8 +72,16 @@ class WeatherPainter(private val ctx: Context, size: Int, private val fg: Int) {
     }
     private fun withAlpha(col: Int, a: Int) = (col and 0x00FFFFFF) or (a shl 24)
 
-    /** 날씨 아이콘(해·달·구름·비·눈)을 원하는 색으로 */
+    private var funRes = 0
+
+    /** 날씨 아이콘(해·달·구름·비·눈)을 원하는 색으로. 병맛 테마면 캐릭터 그림(조금 크게) */
     private fun icon(res: Int, cx: Float, cy: Float, sz: Float, col: Int) {
+        if (quirky && funRes != 0) {
+            val b = Assets.get(ctx, funRes) ?: return
+            val half = sz * 1.45f * u / 2f
+            c.drawBitmap(b, null, RectF(cx * u - half, cy * u - half, cx * u + half, cy * u + half), Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+            return
+        }
         val dr = ctx.getDrawable(res)?.mutate() ?: return
         dr.setTint(col)
         val half = sz * u / 2f
@@ -121,6 +133,7 @@ class WeatherPainter(private val ctx: Context, size: Int, private val fg: Int) {
         val cond = msg ?: d.cond()
         val rng = if (msg == null) d.rangeText() else ""
         val ic = d.icon()
+        funRes = d.iconFun()
 
         when (design) {
             1 -> { // 미니멀
@@ -172,14 +185,14 @@ class WeatherPainter(private val ctx: Context, size: Int, private val fg: Int) {
             }
             5 -> { // 달력
                 c.drawRoundRect(rect(14f, 6f, 156f, 164f), 14 * u, 14 * u, fill(PAPER))
-                c.drawRoundRect(rect(14f, 6f, 156f, 36f), 14 * u, 14 * u, fill(RED))
-                c.drawRect(rect(14f, 22f, 156f, 36f), fill(RED))
-                text(85f, 21f, ym, 13f, SANS, Color.WHITE, H.C, V.MID)
+                c.drawRoundRect(rect(14f, 6f, 156f, 36f), 14 * u, 14 * u, fill(point))
+                c.drawRect(rect(14f, 22f, 156f, 36f), fill(point))
+                text(85f, 21f, ym, 13f, SANS, if (Color.luminance(point) > 0.6f) INK else Color.WHITE, H.C, V.MID)
                 text(85f, 72f, day, 56f, SERIF, INK, H.C, V.MID)
                 text(85f, 108f, wk, 13f, SANS_M, 0xFF444444.toInt(), H.C, V.MID)
                 var x = 24f
                 while (x < 146f) { c.drawLine(x * u, 126 * u, (x + 5) * u, 126 * u, stroke(0xFFBDB6A8.toInt(), 1.6f)); x += 8f }
-                icon(ic, 46f, 146f, 21f, RED)
+                icon(ic, 46f, 146f, 21f, point)
                 text(60f, 146f, temp, 15f, SANS, INK, v = V.MID)
                 text(92f, 146f, if (msg != null) cond else rng, 12f, SANS_R, 0xFF555555.toInt(), v = V.MID)
             }

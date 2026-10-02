@@ -100,6 +100,25 @@ object Palette {
         }
     }
 
+    /**
+     * 재생 버튼: 강조색 원 + 그 위 대비 색 아이콘. 유리 + 자동 색이면 둘 다 시스템 색 자원이라
+     * 런처가 다크 모드·배경화면에 맞춰 칠함
+     */
+    fun setPlay(ctx: Context, rv: RemoteViews, playing: Boolean, s: WidgetStyle) {
+        if (s.glass && s.fg == AUTO && !bgHidden(s)) {
+            rv.setImageViewResource(R.id.play_bg, R.drawable.play_circle_auto)
+            rv.setInt(R.id.play_bg, "setColorFilter", 0)
+            rv.setImageViewResource(R.id.btn_play, if (playing) R.drawable.ic_pause_on else R.drawable.ic_play_on)
+            rv.setInt(R.id.btn_play, "setColorFilter", 0)
+        } else {
+            val a = accent(ctx, s)
+            rv.setImageViewResource(R.id.play_bg, R.drawable.play_circle)
+            rv.setInt(R.id.play_bg, "setColorFilter", a)
+            rv.setImageViewResource(R.id.btn_play, if (playing) R.drawable.ic_pause else R.drawable.ic_play)
+            rv.setInt(R.id.btn_play, "setColorFilter", if (android.graphics.Color.luminance(a) > 0.55f) 0xFF1B1B1F.toInt() else 0xFFFFFFFF.toInt())
+        }
+    }
+
     /** 글자 색. 유리 + 자동이면 시스템 색 자원으로 지정해 런처 쪽에서 저절로 바뀜 */
     fun setTextColor(ctx: Context, rv: RemoteViews, id: Int, s: WidgetStyle, sub: Boolean = false) {
         if (s.glass && s.fg == AUTO && !bgHidden(s)) {

@@ -65,6 +65,21 @@ data class WeatherData(
         }
     }
 
+    /** 표정이 있는 캐릭터 날씨 아이콘 (색이 들어간 그림이라 색을 입히지 않고 그대로 씀) */
+    fun iconFun(): Int {
+        val n = isNight()
+        val c = code ?: return if (n) R.drawable.w_fun_partly_night else R.drawable.w_fun_partly_day
+        return when (c) {
+            0, 1 -> if (n) R.drawable.w_fun_clear_night else R.drawable.w_fun_clear_day
+            2 -> if (n) R.drawable.w_fun_partly_night else R.drawable.w_fun_partly_day
+            45, 48 -> R.drawable.w_fun_fog
+            in 51..67, in 80..82 -> R.drawable.w_fun_rain
+            in 71..77, 85, 86 -> R.drawable.w_fun_snow
+            in 95..99 -> R.drawable.w_fun_thunder
+            else -> R.drawable.w_fun_cloudy
+        }
+    }
+
     /** 삼성 위젯 같은 색이 들어간 입체 날씨 아이콘 */
     fun icon3d(): Int {
         val n = isNight()

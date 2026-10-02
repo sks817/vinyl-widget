@@ -13,22 +13,30 @@ enum class Kind { MUSIC, WEATHER, MUSIC_WIDE, WEATHER_WIDE }
  * glass = 배경 '자동(유리)', fg = Palette.AUTO면 글자·버튼 색 자동
  * corner = 그림 모서리 둥글기(짧은 변의 %, -1이면 디자인 기본값), glassArt = 그림 유리 캡슐 효과,
  * artShadow = 그림 그림자 (바탕 없음일 때만 그림)
+ * quirky = 병맛 테마 (날씨: 캐릭터 아이콘, 레코드: 만화풍 판과 왕눈이 라벨), point = 달력 디자인 윗부분 색
  */
 data class WidgetStyle(
     val white: Boolean, val transparency: Int, val fg: Int, val design: Int, val glass: Boolean = true,
-    val corner: Int = -1, val glassArt: Boolean = true, val artShadow: Boolean = true
-)
+    val corner: Int = -1, val glassArt: Boolean = true, val artShadow: Boolean = true,
+    val quirky: Boolean = false, val point: Int = WidgetStyle.DEFAULT_POINT
+) {
+    companion object {
+        /** 달력 디자인 윗부분 기본 색 (벽돌색) */
+        const val DEFAULT_POINT = 0xFFB23A2E.toInt()
+    }
+}
 
 /** 위젯 종류별 고정 값 (꾸미기 화면이 이걸 보고 동작) */
 object KindConfig {
-    private fun isMusic(k: Kind) = k == Kind.MUSIC || k == Kind.MUSIC_WIDE
+    fun isMusic(k: Kind) = k == Kind.MUSIC || k == Kind.MUSIC_WIDE
 
     /**
      * 기본값: 자동 색. 레코드 위젯은 유리 카드,
      * 날씨·날짜 위젯은 바탕 없이 그림과 글자만 배경화면 위에 (요즘 투명 위젯 문법)
      */
     fun default(k: Kind) = WidgetStyle(
-        white = false, transparency = if (isMusic(k)) 0 else 100, fg = Palette.AUTO, design = 1, glass = true
+        white = false, transparency = if (isMusic(k)) 0 else 100, fg = Palette.AUTO, design = 1, glass = true,
+        quirky = !isMusic(k)
     )
 
     fun provider(k: Kind): Class<*> = when (k) {
@@ -59,7 +67,7 @@ object KindConfig {
 
     fun preview(ctx: Context, k: Kind, style: WidgetStyle): RemoteViews {
         val (w, h) = previewSize(k)
-        val l = LabelRenderer.draw(null, Palette.label(ctx))
+        val l = LabelRenderer.draw(null, Palette.label(ctx), style.quirky)
         return when (k) {
             Kind.MUSIC -> MusicWidget.build(ctx, style, l, playing = false, status = null)
             Kind.MUSIC_WIDE -> MusicWidget.buildWide(ctx, style, l, false, "곡 제목", "가수 이름", null, w, h)
@@ -105,7 +113,9 @@ object WidgetPrefs {
             p.getBoolean(dk(k, "g"), d.glass),
             p.getInt(dk(k, "r"), d.corner),
             p.getBoolean(dk(k, "ga"), d.glassArt),
-            p.getBoolean(dk(k, "sh"), d.artShadow)
+            p.getBoolean(dk(k, "sh"), d.artShadow),
+            p.getBoolean(dk(k, "q"), d.quirky),
+            p.getInt(dk(k, "pc"), d.point)
         )
         if (id == null) return base
         return WidgetStyle(
@@ -116,7 +126,9 @@ object WidgetPrefs {
             p.getBoolean("g_$id", base.glass),
             p.getInt("r_$id", base.corner),
             p.getBoolean("ga_$id", base.glassArt),
-            p.getBoolean("sh_$id", base.artShadow)
+            p.getBoolean("sh_$id", base.artShadow),
+            p.getBoolean("q_$id", base.quirky),
+            p.getInt("pc_$id", base.point)
         )
     }
 
@@ -127,10 +139,12 @@ object WidgetPrefs {
             e.putBoolean("w_$id", s.white).putInt("a_$id", s.transparency)
                 .putInt("f_$id", s.fg).putInt("d_$id", s.design).putBoolean("g_$id", s.glass)
                 .putInt("r_$id", s.corner).putBoolean("ga_$id", s.glassArt).putBoolean("sh_$id", s.artShadow)
+                .putBoolean("q_$id", s.quirky).putInt("pc_$id", s.point)
         } else {
             e.putBoolean(dk(k, "w"), s.white).putInt(dk(k, "a"), s.transparency)
                 .putInt(dk(k, "f"), s.fg).putInt(dk(k, "d"), s.design).putBoolean(dk(k, "g"), s.glass)
                 .putInt(dk(k, "r"), s.corner).putBoolean(dk(k, "ga"), s.glassArt).putBoolean(dk(k, "sh"), s.artShadow)
+                .putBoolean(dk(k, "q"), s.quirky).putInt(dk(k, "pc"), s.point)
             val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, KindConfig.provider(k)))
             ids.forEach { removeId(e, it) }
         }
@@ -144,7 +158,7 @@ object WidgetPrefs {
     }
 
     private fun removeId(e: android.content.SharedPreferences.Editor, id: Int) {
-        for (f in listOf("w", "t", "c", "d", "a", "f", "g", "r", "ga", "sh")) e.remove("${f}_$id")
+        for (f in listOf("w", "t", "c", "d", "a", "f", "g", "r", "ga", "sh", "q", "pc")) e.remove("${f}_$id")
     }
 
     fun alphaOf(transparency: Int): Int = ((100 - transparency) * 255 / 100).coerceIn(0, 255)

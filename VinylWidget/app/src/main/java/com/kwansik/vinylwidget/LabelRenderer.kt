@@ -13,7 +13,8 @@ object LabelRenderer {
     private const val SIZE = 300
     private const val LABEL_RATIO = 0.62f
 
-    fun draw(art: Bitmap?, fallback: Int = 0xFFB23A2E.toInt()): Bitmap {
+    /** quirky = 병맛 테마: 굵은 잉크 테두리 + 왕눈이 스티커 (커버가 없으면 얼굴까지) */
+    fun draw(art: Bitmap?, fallback: Int = 0xFFB23A2E.toInt(), quirky: Boolean = false): Bitmap {
         val bmp = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         val cx = SIZE / 2f
@@ -45,9 +46,32 @@ object LabelRenderer {
         p.strokeWidth = 2f
         p.color = 0x66000000
         c.drawCircle(cx, cx, lr, p)
+        if (quirky) drawFace(c, cx, lr, art == null)
         p.style = Paint.Style.FILL
         p.color = 0xFF0D0D0D.toInt()
         c.drawCircle(cx, cx, SIZE * 0.02f, p)      // 가운데 구멍
         return bmp
+    }
+
+    private const val INK = 0xFF2B2622.toInt()
+
+    /** 왕눈이 스티커 두 개 (눈동자는 서로 다른 쪽을 봄) + 커버가 없으면 헤벌쭉 웃는 입 */
+    private fun drawFace(c: Canvas, cx: Float, lr: Float, mouth: Boolean) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        p.style = Paint.Style.STROKE; p.strokeWidth = lr * 0.07f; p.color = INK
+        c.drawCircle(cx, cx, lr - p.strokeWidth / 2, p)                      // 잉크 테두리
+        val er = lr * 0.24f; val ey = cx - lr * 0.3f
+        for ((ex, dx, dy) in listOf(Triple(cx - lr * 0.32f, -0.35f, 0.25f), Triple(cx + lr * 0.3f, 0.3f, -0.2f))) {
+            p.style = Paint.Style.FILL; p.color = 0xFFFFFFFF.toInt(); c.drawCircle(ex, ey, er, p)
+            p.style = Paint.Style.STROKE; p.color = INK; p.strokeWidth = lr * 0.045f; c.drawCircle(ex, ey, er, p)
+            p.style = Paint.Style.FILL; c.drawCircle(ex + er * dx, ey + er * dy, er * 0.48f, p)
+            p.color = 0xFFFFFFFF.toInt(); c.drawCircle(ex + er * dx - er * 0.15f, ey + er * dy - er * 0.18f, er * 0.13f, p)
+        }
+        if (mouth) {
+            p.style = Paint.Style.STROKE; p.color = INK; p.strokeWidth = lr * 0.07f; p.strokeCap = Paint.Cap.ROUND
+            c.drawArc(android.graphics.RectF(cx - lr * 0.35f, cx - lr * 0.05f, cx + lr * 0.35f, cx + lr * 0.5f), 15f, 150f, false, p)
+            p.style = Paint.Style.FILL; p.color = 0xFFFF8A80.toInt()
+            c.drawOval(android.graphics.RectF(cx + lr * 0.05f, cx + lr * 0.38f, cx + lr * 0.25f, cx + lr * 0.55f), p)   // 혀
+        }
     }
 }

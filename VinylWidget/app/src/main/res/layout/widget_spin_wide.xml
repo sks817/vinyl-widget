@@ -9,7 +9,7 @@
     <LinearLayout
         android:layout_width="match_parent" android:layout_height="match_parent"
         android:orientation="horizontal" android:gravity="center_vertical"
-        android:paddingStart="8dp" android:paddingEnd="4dp" android:paddingTop="6dp" android:paddingBottom="6dp">
+        android:paddingStart="7dp" android:paddingEnd="12dp" android:paddingTop="6dp" android:paddingBottom="6dp">
         <FrameLayout android:id="@+id/deck"
             android:layout_width="70dp" android:layout_height="60dp">
             <ImageView android:id="@+id/static_disc"
@@ -18,6 +18,13 @@
             <ProgressBar android:id="@+id/spinner"
                 android:layout_width="60dp" android:layout_height="60dp" android:layout_gravity="start|center_vertical"
                 android:indeterminateOnly="true" android:indeterminateDrawable="@drawable/vinyl_spin"
+                android:indeterminateDuration="1800" android:indeterminateBehavior="repeat"
+                android:interpolator="@android:anim/linear_interpolator"
+                android:minWidth="0dp" android:minHeight="0dp" android:maxWidth="2000dp" android:maxHeight="2000dp"
+                android:visibility="gone" />
+            <ProgressBar android:id="@+id/spinner_fun"
+                android:layout_width="60dp" android:layout_height="60dp" android:layout_gravity="start|center_vertical"
+                android:indeterminateOnly="true" android:indeterminateDrawable="@drawable/vinyl_spin_fun"
                 android:indeterminateDuration="1800" android:indeterminateBehavior="repeat"
                 android:interpolator="@android:anim/linear_interpolator"
                 android:minWidth="0dp" android:minHeight="0dp" android:maxWidth="2000dp" android:maxHeight="2000dp"
@@ -32,7 +39,7 @@
         </FrameLayout>
         <LinearLayout android:id="@+id/w_text"
             android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
-            android:layout_marginStart="12dp" android:orientation="vertical" android:gravity="center_vertical">
+            android:layout_marginStart="10dp" android:layout_marginEnd="8dp" android:orientation="vertical" android:gravity="center_vertical">
             <TextView android:id="@+id/m_title"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textSize="15sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"
@@ -44,16 +51,23 @@
                 android:textColor="@color/glass_sub" />
         </LinearLayout>
         <ImageButton android:id="@+id/btn_prev"
-            android:layout_width="38dp" android:layout_height="44dp"
-            android:src="@drawable/ic_prev_auto" android:scaleType="centerInside"
+            android:layout_width="34dp" android:layout_height="34dp"
+            android:src="@drawable/ic_prev_auto" android:scaleType="fitCenter" android:padding="6dp"
             android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/prev" />
-        <ImageButton android:id="@+id/btn_play"
-            android:layout_width="38dp" android:layout_height="44dp"
-            android:src="@drawable/ic_play_auto" android:scaleType="centerInside"
-            android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/play" />
+        <FrameLayout android:id="@+id/play_box"
+            android:layout_width="48dp" android:layout_height="48dp"
+            android:layout_marginStart="4dp" android:layout_marginEnd="4dp">
+            <ImageView android:id="@+id/play_bg"
+                android:layout_width="match_parent" android:layout_height="match_parent"
+                android:src="@drawable/play_circle_auto" />
+            <ImageButton android:id="@+id/btn_play"
+                android:layout_width="match_parent" android:layout_height="match_parent"
+                android:src="@drawable/ic_play_on" android:scaleType="fitCenter" android:padding="12dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/play" />
+        </FrameLayout>
         <ImageButton android:id="@+id/btn_next"
-            android:layout_width="38dp" android:layout_height="44dp"
-            android:src="@drawable/ic_next_auto" android:scaleType="centerInside"
+            android:layout_width="34dp" android:layout_height="34dp"
+            android:src="@drawable/ic_next_auto" android:scaleType="fitCenter" android:padding="6dp"
             android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/next" />
     </LinearLayout>
 </FrameLayout>

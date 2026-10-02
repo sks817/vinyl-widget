@@ -69,16 +69,18 @@ object WidgetUpdater {
             else -> null
         }
         val playing = np?.playing == true
-        val label = LabelRenderer.draw(np?.art, Palette.label(ctx))
+        // 라벨은 테마(기본/병맛)별로 필요할 때 한 번만 그림
+        val labels = HashMap<Boolean, Bitmap>()
+        fun labelFor(s: WidgetStyle) = labels.getOrPut(s.quirky) { LabelRenderer.draw(np?.art, Palette.label(ctx), s.quirky) }
         for (id in ids) {
             val style = WidgetPrefs.style(ctx, Kind.MUSIC, id)
             val (w, h) = WidgetGeom.sizeDp(mgr, id)
-            mgr.updateAppWidget(id, MusicWidget.build(ctx, style, label, playing, status, w, h))
+            mgr.updateAppWidget(id, MusicWidget.build(ctx, style, labelFor(style), playing, status, w, h))
         }
         for (id in wideIds) {
             val style = WidgetPrefs.style(ctx, Kind.MUSIC_WIDE, id)
             val (w, h) = WidgetGeom.sizeDp(mgr, id)
-            mgr.updateAppWidget(id, MusicWidget.buildWide(ctx, style, label, playing, np?.title, np?.artist, status, w, h))
+            mgr.updateAppWidget(id, MusicWidget.buildWide(ctx, style, labelFor(style), playing, np?.title, np?.artist, status, w, h))
         }
         lastKey = key
     }

@@ -37,10 +37,25 @@ class ConfigActivity : Activity() {
         const val EXTRA_KIND = "kind"
     }
 
-    private val presets = intArrayOf(
-        0xFFFFFFFF.toInt(), 0xFFBDBDBD.toInt(), 0xFF161616.toInt(), 0xFFFF0033.toInt(), 0xFFFF8A00.toInt(),
-        0xFFFFD600.toInt(), 0xFF00C853.toInt(), 0xFF00B8D4.toInt(), 0xFF2962FF.toInt(), 0xFFD500F9.toInt()
-    )
+    /** 글자·버튼 추천 색: 윗줄은 배경화면에서 뽑은 색, 아랫줄은 진한 강조색 + 캠핑 그림과 어울리는 색 */
+    private val presets by lazy {
+        intArrayOf(
+            getColor(android.R.color.system_neutral1_10), getColor(android.R.color.system_accent1_100),
+            getColor(android.R.color.system_accent1_300), getColor(android.R.color.system_accent2_300),
+            getColor(android.R.color.system_accent3_300),
+            getColor(android.R.color.system_accent1_600), getColor(android.R.color.system_neutral1_900),
+            0xFFF5B860.toInt(), 0xFFE0794F.toInt(), 0xFF8DB596.toInt()
+        ).map { it or 0xFF000000.toInt() }.toIntArray()
+    }
+
+    /** 달력 윗부분 추천 색: 기본 벽돌색 + 배경화면 색 + 캠핑 톤 */
+    private val pointPresets by lazy {
+        intArrayOf(
+            WidgetStyle.DEFAULT_POINT, getColor(android.R.color.system_accent1_500),
+            getColor(android.R.color.system_accent2_500), getColor(android.R.color.system_accent3_500), 0xFFE0794F.toInt(),
+            0xFF4F7D64.toInt(), 0xFF2F4A7A.toInt(), 0xFFD9A441.toInt(), 0xFF3A3A3A.toInt(), 0xFFE58FA6.toInt()
+        ).map { it or 0xFF000000.toInt() }.toIntArray()
+    }
 
     // ---- 꾸미기 값 ----
     private var widgetId = AppWidgetManager.INVALID_APPWIDGET_ID
@@ -53,6 +68,8 @@ class ConfigActivity : Activity() {
     private var corner = -1
     private var glassArt = true
     private var artShadow = true
+    private var quirky = false
+    private var point = WidgetStyle.DEFAULT_POINT
 
     private val hsv = FloatArray(3)
     private var updatingUi = false
@@ -98,6 +115,7 @@ class ConfigActivity : Activity() {
         val s = WidgetPrefs.style(this, kind, targetId())
         white = s.white; glass = s.glass; transparency = s.transparency; color = s.fg
         design = s.design; corner = s.corner; glassArt = s.glassArt; artShadow = s.artShadow
+        quirky = s.quirky; point = s.point
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(buildPreview(), LinearLayout.LayoutParams(MATCH, dp(236)))
@@ -111,7 +129,7 @@ class ConfigActivity : Activity() {
 
     private fun targetId(): Int? = widgetId.takeIf { it != AppWidgetManager.INVALID_APPWIDGET_ID }
     private fun resultIntent() = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt, artShadow)
+    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt, artShadow, quirky, point)
     private fun isWeather() = kind == Kind.WEATHER || kind == Kind.WEATHER_WIDE
 
     // ================= 미리보기 =================
@@ -173,7 +191,9 @@ class ConfigActivity : Activity() {
         if (isWeather()) {
             body.addView(designCard())
             body.addView(artCard())
+            if (kind == Kind.WEATHER) body.addView(calendarCard())
         }
+        body.addView(themeCard())
         body.addView(backgroundCard())
         body.addView(colorCard())
 
@@ -226,6 +246,48 @@ class ConfigActivity : Activity() {
         return card
     }
 
+    // ---- 병맛 테마 ----
+    private fun themeCard(): View {
+        val music = KindConfig.isMusic(kind)
+        val card = card("테마", null)
+        card.addView(toggleRow("병맛 테마",
+            if (music) "만화풍 굵은 선 레코드판 + 라벨에 왕눈이 스티커" else "날씨 아이콘이 표정 있는 캐릭터로 바뀌어요",
+            { quirky }) { quirky = it })
+        return card
+    }
+
+    // ---- 달력 윗부분 색 (날씨 2×2 '달력' 디자인) ----
+    private fun calendarCard(): View {
+        val card = card("달력 윗부분 색", "'달력' 디자인의 맨 위 띠 색이에요")
+        val sws = mutableListOf<View>()
+        card.addView(swatchGrid(pointPresets, sws) { c -> point = c; sws.forEach { styleSwatch(it, it.tag as Int == point) }; renderPreview() })
+        refreshers += {
+            card.visibility = if (design == 7) View.VISIBLE else View.GONE
+            sws.forEach { styleSwatch(it, it.tag as Int == point) }
+        }
+        return card
+    }
+
+    /** 정원형 색 동그라미 격자 (한 줄에 5개, 지름 40dp 고정) */
+    private fun swatchGrid(colors: IntArray, into: MutableList<View>, onPick: (Int) -> Unit): View {
+        val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        colors.toList().chunked(5).forEach { rowColors ->
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            rowColors.forEachIndexed { i, c ->
+                if (i > 0) row.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))       // 동그라미 사이를 고르게 벌림
+                val sw = View(this).apply {
+                    tag = c
+                    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(c) }
+                    setOnClickListener { onPick(c) }
+                }
+                into += sw
+                row.addView(sw, LinearLayout.LayoutParams(dp(40), dp(40)).apply { setMargins(0, dp(6), 0, dp(6)) })
+            }
+            grid.addView(row, LinearLayout.LayoutParams(MATCH, WRAP).apply { setMargins(dp(4), 0, dp(4), 0) })
+        }
+        return grid
+    }
+
     // ---- 배경 ----
     private fun backgroundCard(): View {
         val card = card("배경", "없음: 배경화면 위에 그대로 · 유리: 배경화면 색을 띤 반투명 카드")
@@ -258,20 +320,8 @@ class ConfigActivity : Activity() {
         autoChip = pill("✦  자동 · 배경에 맞춤").apply { setOnClickListener { hexInput.clearFocus(); setAutoColor() } }
         card.addView(autoChip, LinearLayout.LayoutParams(WRAP, dp(38)).apply { bottomMargin = dp(10) })
 
-        for (rowIdx in 0 until 2) {
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-            for (i in 0 until 5) {
-                val c = presets[rowIdx * 5 + i]
-                val sw = View(this).apply {
-                    tag = c
-                    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(c) }
-                    setOnClickListener { hexInput.clearFocus(); applyColor(c, fromHsv = false) }
-                }
-                swatches += sw
-                row.addView(sw, LinearLayout.LayoutParams(0, dp(40), 1f).apply { setMargins(dp(5), dp(5), dp(5), dp(5)) })
-            }
-            card.addView(row)
-        }
+        card.addView(caption("배경화면에 어울리는 추천 색").apply { setPadding(0, 0, 0, dp(2)) })
+        card.addView(swatchGrid(presets, swatches) { c -> hexInput.clearFocus(); applyColor(c, fromHsv = false) })
 
         // 직접 고르기 (접었다 펴기)
         val picker = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
