@@ -192,14 +192,11 @@ class WeatherScene(
                     // 오른쪽 아래: 캐릭터 / 날씨 / 최저·최고 (오른쪽 정렬)
                     val right = card.right - m
                     val rp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.072f; typeface = SANS_R; color = 0xD9FFFFFF.toInt(); textAlign = Paint.Align.RIGHT; setShadowLayer(S * 0.02f, 0f, S * 0.005f, sh) }
-                    val cp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.085f; typeface = SANS; color = white; textAlign = Paint.Align.RIGHT; setShadowLayer(S * 0.02f, 0f, S * 0.005f, sh) }
                     val range = d.rangeText().replace(" ", "")
                     c.drawText(range, right, bottom, rp)
-                    val condBase = bottom - S * 0.095f
-                    c.drawText(d.cond(), right, condBase, cp)
                     val ic = S * 0.2f
                     // 병맛 그림은 하늘에 이미 캐릭터가 있으니 여기 아이콘은 생략
-                    if (!quirky) wIcon(d, right - ic / 2 + S * 0.02f, condBase - S * 0.085f - ic / 2, ic, white)
+                    if (!quirky) wIcon(d, right - ic / 2 + S * 0.02f, bottom - S * 0.1f - ic / 2, ic, white)
                 }
             }
             2 -> { // 불 켜진 텐트: 날짜를 텐트 천 위에
@@ -227,32 +224,28 @@ class WeatherScene(
                 asset(icon, fitBottom(icon, box))
                 bottomRow(d)
             }
-            8 -> { // 캐릭터 (병맛): 큰 캐릭터 + 말풍선 한마디 + 큰 기온
+            8 -> { // 캐릭터 (병맛): 큰 캐릭터 + 한마디 + 큰 기온
                 val box = RectF(pad, pad, W - pad, H - pad)
                 val S = min(box.width(), box.height())
                 val black = Typeface.create("sans-serif-black", Typeface.NORMAL)
-                // 왼쪽 위: 날짜·요일
-                text(md, box.left + S * 0.04f, box.top + S * 0.03f, S * 0.2f, black, fg)
-                text(wk, box.left + S * 0.05f, box.top + S * 0.25f, S * 0.08f, SANS_M, sub)
+                // 왼쪽 위: 날짜·요일 한 줄 (작게) → 한마디가 주인공
+                text("$md $wk", box.left + S * 0.05f, box.top + S * 0.06f, S * 0.085f, SANS_M, sub)
                 // 오른쪽: 큰 캐릭터 (병맛 테마를 꺼도 이 디자인은 캐릭터)
                 val cs = S * 0.5f
                 funIcon(d.iconFun(), box.right - cs / 2 + S * 0.02f, box.top + S * 0.06f + cs / 2, cs)
-                // 왼쪽: 캐릭터가 하는 한마디 (말풍선, 꼬리는 캐릭터 쪽)
-                val qp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.07f; typeface = SANS_M; color = 0xFF3A3330.toInt() }
-                val lines = Bubble.wrap(Quips.of(d), qp, S * 0.5f - S * 0.07f * 1.7f, 2)
-                Bubble.draw(c, box.left + S * 0.03f, box.top + S * 0.37f, lines, qp, tailRight = true)
+                // 왼쪽: 캐릭터가 하는 한마디 (글자만, 띄어쓰기 단위로 2줄까지)
+                val qp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.105f; typeface = black; color = fg }.shade()
+                TextWrap.wrap(Quips.of(d), qp, S * 0.48f, 3).forEachIndexed { i, line ->
+                    c.drawText(line, box.left + S * 0.05f, box.top + S * 0.2f - qp.fontMetrics.ascent + i * S * 0.105f * 1.3f, qp)
+                }
                 // 아래: 기온(크게) + 날씨·최저/최고
                 val msg = d.message()
                 val by = box.bottom - S * 0.02f
                 if (msg != null) {
                     text(msg, box.left + S * 0.04f, by - S * 0.12f, S * 0.08f, SANS, fg)
                 } else {
-                    val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.2f; typeface = black; color = fg }.shade()
+                    val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.24f; typeface = black; color = fg }.shade()
                     c.drawText(d.tempText(), box.left + S * 0.04f, by, tp)
-                    val rp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.075f; typeface = SANS_M; color = sub; textAlign = Paint.Align.RIGHT }.shade()
-                    c.drawText(d.rangeText().replace(" ", ""), box.right - S * 0.02f, by, rp)
-                    val cp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.085f; typeface = SANS; color = fg; textAlign = Paint.Align.RIGHT }.shade()
-                    c.drawText(d.cond(), box.right - S * 0.02f, by - S * 0.1f, cp)
                 }
             }
             else -> { // 기존 디자인(미니멀·다이얼·달력)은 정사각 칸 가운데에

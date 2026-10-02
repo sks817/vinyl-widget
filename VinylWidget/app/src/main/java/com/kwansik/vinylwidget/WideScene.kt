@@ -15,10 +15,11 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * 1×4 날씨 위젯. 좌·중·우 3단으로 무게를 맞춤 (폭이 좁으면 가운데 캐릭터는 왼쪽으로)
+ * 1×4 날씨 위젯. 날씨 아이콘은 항상 날씨 정보 바로 왼쪽에 붙임
  *  1) 캠핑 파노라마: [큰 날짜·요일] (가운데 캠프 풍경) [캐릭터+기온 · 날씨·최저/최고]
- *  2) 텐트 + 날짜:   [텐트][큰 날짜·요일]  (가운데 큰 날씨 캐릭터)  [기온 · 날씨·최저/최고]
- *  3) 심플:          [기온·동네]  (가운데 큰 날씨 캐릭터)  [날짜·시계(시계는 TextClock)]
+ *  2) 텐트 + 날짜:   [텐트][큰 날짜·요일]  ……  [날씨 아이콘][기온 · 날씨·최저/최고]
+ *  3) 심플:          [날씨 아이콘][기온·동네]  ……  [날짜·시계(시계는 TextClock)]
+ *  4) 캐릭터:        [큰 캐릭터][한마디]  ……  [큰 기온]
  * 크기는 모두 위젯 높이(h) 비율이고, 작은 글자는 12dp 아래로 내려가지 않음
  */
 class WideScene(
@@ -80,14 +81,6 @@ class WideScene(
         }
     }
 
-    /** 왼쪽 단 끝(leftEnd)과 오른쪽 단 시작(rightStart) 사이 가운데에 큰 날씨 캐릭터. 자리가 없으면 false */
-    private fun centerIcon(leftEnd: Float, rightStart: Float, h: Float, d: WeatherData): Boolean {
-        val size = min(h * 0.86f, rightStart - leftEnd - h * 0.3f)
-        if (size < h * 0.5f) return false
-        wIcon(d, (leftEnd + rightStart) / 2, h / 2, size, accent, big3d = true)
-        return true
-    }
-
     /** cardAlpha = 0이면 회색 카드를 그리지 않고(유리 배경 위) 글자는 fg/sub 색을 씀 */
     fun draw(
         design: Int, d: WeatherData, cardAlpha: Int = 148, lightCard: Boolean = false,
@@ -117,19 +110,15 @@ class WideScene(
                 val dateStr = "${today.monthValue}월 ${today.dayOfMonth}일 $wk"
                 textMid(dateStr, right, h * 0.28f, dateP)
                 val rightStart = right - max(dateP.measureText(dateStr), paint(h * 0.38f, SYS_M, main).measureText("00:00"))
-                // 왼쪽: 기온 / 동네 (폭이 좁으면 캐릭터를 맨 왼쪽에 두고 그 옆에)
-                val narrow = widthDp < 290f
+                // 왼쪽: [날씨 아이콘][기온 / 동네]
                 val ic = h * 0.74f
-                if (narrow) wIcon(d, h * 0.08f + ic / 2, h / 2, ic, accent, big3d = true)
-                val tx = if (narrow) h * 0.08f + ic + h * 0.04f else h * 0.3f
-                var leftEnd: Float
+                wIcon(d, h * 0.08f + ic / 2, h / 2, ic, accent, big3d = true)
+                val tx = h * 0.08f + ic + h * 0.04f
                 if (msg != null) {
-                    val mp = paint(small(h * 0.16f), SYS_M, main)
-                    textMid(msg, tx, h * 0.5f, mp); leftEnd = tx + mp.measureText(msg)
+                    textMid(msg, tx, h * 0.5f, paint(small(h * 0.16f), SYS_M, main))
                 } else {
                     val tp = paint(h * 0.38f, SYS_M, main)
                     textMid(d.tempText(), tx, h * 0.41f, tp)
-                    leftEnd = tx + tp.measureText(d.tempText())
                     val sp = paint(small(h * 0.15f), SYS, soft)
                     val place = WeatherStore.place(ctx)
                     var x = tx
@@ -143,14 +132,12 @@ class WideScene(
                     val label = place ?: d.cond()
                     val range = d.rangeText().replace(" ", "")
                     val text = if (range.isEmpty()) label else "$label · $range"
-                    val limit = if (narrow) rightStart - h * 0.3f else (tx + rightStart) / 2 - h * 0.5f
+                    val limit = rightStart - h * 0.3f
                     val shown = if (x + sp.measureText(text) < limit) text else label
                     textMid(shown, x, h * 0.705f, sp)
-                    leftEnd = max(leftEnd, x + sp.measureText(shown))
                 }
-                if (!narrow && msg == null) centerIcon(leftEnd, rightStart, h, d)
             }
-            4 -> { // ---- 캐릭터 (병맛): [큰 캐릭터] [말풍선 한마디 / 날짜·날씨] [큰 기온] ----
+            4 -> { // ---- 캐릭터 (병맛): [큰 캐릭터] [한마디(2줄까지)] [큰 기온] ----
                 val h = H
                 val black = Typeface.create("sans-serif-black", Typeface.NORMAL)
                 val cs = h * 0.92f
@@ -161,18 +148,11 @@ class WideScene(
                 val tw = if (msg == null) tp.measureText(d.tempText()) else 0f
                 if (msg == null) textMid(d.tempText(), right, h * 0.5f, tp)
                 val maxW = right - tw - h * 0.25f - x
-                // 캐릭터가 하는 한마디 (말풍선, 꼬리는 왼쪽 캐릭터 쪽). 넘치면 …으로 줄임
-                val qp = paint(small(h * 0.155f), SANS_M, 0xFF3A3330.toInt())
-                qp.clearShadowLayer()
-                val lines = Bubble.wrap(msg ?: Quips.of(d), qp, maxW - qp.textSize * 1.7f, 1)
-                Bubble.draw(c, x, h * 0.1f, lines, qp, tailRight = false)
-                // 아래 줄: 날짜·요일 · 날씨·최저/최고
-                val range = d.rangeText().replace(" ", "")
-                val line = if (msg != null) "$md $wk" else "$md $wk · ${d.cond()}${if (range.isEmpty()) "" else " $range"}"
-                val lp = paint(small(h * 0.15f), SANS_M, sub)
-                c.save(); c.clipRect(x, 0f, x + maxW, h)
-                textMid(line, x + h * 0.02f, h * 0.72f, lp)
-                c.restore()
+                // 캐릭터가 하는 한마디 (글자만, 넘치면 …으로 줄임)
+                val qp = paint(h * 0.2f, black, fg)
+                val lines = TextWrap.wrap(msg ?: Quips.of(d), qp, maxW, 2)
+                val lh = qp.textSize * 1.25f
+                lines.forEachIndexed { i, line -> textMid(line, x, h / 2 - (lines.size - 1) * lh / 2 + i * lh, qp) }
             }
             1 -> { // ---- 캠핑 파노라마 ----
                 val pad = 6f * k
@@ -209,7 +189,7 @@ class WideScene(
                     // 병맛 그림은 하늘에 이미 캐릭터가 있으니 기온 옆 아이콘은 생략
                     if (!quirky) wIcon(d, right - tp.measureText(d.tempText()) - big * 0.08f - ic / 2, y1, ic, main)
                     val range = d.rangeText().replace(" ", "")
-                    textMid(if (range.isEmpty()) d.cond() else "${d.cond()} · $range", right, y2, paint(sm, SANS_M, soft, Paint.Align.RIGHT))
+                    textMid(if (range.isEmpty()) d.cond() else range, right, y2, paint(sm, SANS_M, soft, Paint.Align.RIGHT))
                 }
             }
             else -> { // ---- 텐트 + 날짜 ----
@@ -234,11 +214,13 @@ class WideScene(
                     val tp = paint(h * 0.38f, SERIF, fg, Paint.Align.RIGHT)
                     textMid(d.tempText(), right, h * 0.41f, tp)
                     val range = d.rangeText().replace(" ", "")
-                    val line = if (range.isEmpty()) d.cond() else "${d.cond()} · $range"
+                    val line = if (range.isEmpty()) d.cond() else range
                     val lp = paint(small(h * 0.15f), SANS_M, sub, Paint.Align.RIGHT)
                     textMid(line, right, h * 0.705f, lp)
-                    val rightStart = right - max(tp.measureText(d.tempText()), lp.measureText(line))
-                    centerIcon(leftEnd, rightStart, h, d)
+                    // 날씨 아이콘은 날씨 정보 바로 왼쪽 (왼쪽 날짜 블록과 겹치면 생략)
+                    val ic = h * 0.7f
+                    val blockLeft = right - max(tp.measureText(d.tempText()), lp.measureText(line))
+                    if (blockLeft - h * 0.08f - ic > leftEnd + h * 0.2f) wIcon(d, blockLeft - h * 0.08f - ic / 2, h / 2, ic, accent)
                 }
             }
         }
