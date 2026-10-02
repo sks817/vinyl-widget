@@ -77,9 +77,9 @@ object CalendarReader {
 
 /**
  * 일정 메모 그림. 다른 위젯과 같은 문법: 바탕은 위젯 공통 배경(없음·유리·검정·흰색·컬러, bg_image),
- * 날짜는 날씨 위젯처럼 세리프 굵은 숫자, 글자색은 공통 자동 색(fg/sub).
+ * 글자색은 공통 자동 색(fg/sub).
  * '붙인 메모' 느낌은 왼쪽 위 모서리의 마스킹테이프 한 조각으로만. 병맛이면 오른쪽 위에 스티커 캐릭터
- * 크기에 따라: 4×1 = [날짜 | 다음 일정 두 개], 4×2 = 날짜 + [오늘 | 다가오는 일정], 2×4·2×2 = 날짜 + 날짜별 목록
+ * 날짜는 넣지 않음(날씨·날짜 위젯과 같이 쓰는 걸 전제). 크기에 따라: 4×1 = 일정 2줄×2칸, 4×2 = [오늘 | 다가오는 일정], 2×4·2×2 = 날짜별 목록
  */
 class MemoScene(
     private val ctx: Context, wDp: Float, hDp: Float,
@@ -99,7 +99,6 @@ class MemoScene(
         c = Canvas(bitmap); W = bitmap.width.toFloat(); H = bitmap.height.toFloat()
     }
 
-    private val SERIF = Typeface.create(Typeface.SERIF, Typeface.BOLD)
     private val BOLD = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
     private val MED = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     private fun p(size: Float, tf: Typeface, col: Int, a: Paint.Align = Paint.Align.LEFT) =
@@ -122,8 +121,8 @@ class MemoScene(
 
     /** 왼쪽 위 모서리에 비스듬히 붙인 마스킹테이프 (반투명, 옅은 사선 무늬) */
     private fun tapeCorner() {
-        val tw = max(min(W, H) * 0.5f, 44f * k); val th = tw * 0.32f
-        c.save(); c.translate(tw * 0.3f, th * 0.75f); c.rotate(-35f)
+        val tw = max(min(W, H) * 0.34f, 38f * k); val th = tw * 0.32f
+        c.save(); c.translate(tw * 0.3f, th * 0.7f); c.rotate(-35f)
         val r = RectF(-tw / 2, -th / 2, tw / 2, th / 2)
         c.drawRect(r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = (tape and 0x00FFFFFF) or (0xC8 shl 24) })
         val sp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x26FFFFFF; strokeWidth = th * 0.16f }
@@ -182,38 +181,37 @@ class MemoScene(
 
     fun draw(events: List<CalEvent>, permission: Boolean) {
         val today = LocalDate.now()
-        val md = "${today.monthValue}.${today.dayOfMonth}"
-        val wk = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.KOREAN)
         val wide = W >= H * 1.55f
         val empty = if (!permission) "눌러서 캘린더 권한 허용" else "다가오는 일정이 없어요"
         tapeCorner()
 
-        if (wide && hDp < 110f) {                 // ---- 4×1: 날씨 1×4(텐트+날짜)와 같은 날짜 크기·줄 높이 ----
+        if (wide && hDp < 110f) {                 // ---- 4×1: 날짜 없이 일정만 두 줄 × 두 칸 (날짜는 날씨·날짜 위젯이 보여줌) ----
             val h = H
-            val x0 = h * 0.42f
-            val dp_ = p(h * 0.38f, SERIF, fg)
-            mid(md, x0, h * 0.41f, dp_)
-            mid(wk, x0 + h * 0.01f, h * 0.705f, p(small(h * 0.15f), MED, sub))
-            val lx = x0 + max(dp_.measureText(md), h * 0.9f) + h * 0.32f
-            c.drawRect(lx - h * 0.17f, h * 0.24f, lx - h * 0.17f + max(1f, k), h * 0.76f, Paint().apply { color = (sub and 0x00FFFFFF) or (0x40 shl 24) })
-            val right = W - h * (if (quirky) 0.62f else 0.28f)
+            val left = h * 0.5f
+            val right = W - h * (if (quirky) 0.66f else 0.3f)
             val size = small(h * 0.17f)
-            if (events.isEmpty()) mid(empty, lx, h / 2, p(size, BOLD, sub))
-            else events.take(2).forEachIndexed { i, e -> eventLine(e, lx, h * (if (events.size == 1) 0.5f else 0.35f + i * 0.31f), right - lx, size, e.day != today) }
-            sticker(h * 0.56f, events.isNotEmpty())
+            if (events.isEmpty()) { mid(empty, left, h / 2, p(size, BOLD, sub)); sticker(h * 0.56f, false); return }
+            val shown = events.take(4)
+            val cols = if (shown.size > 2) 2 else 1
+            val gap = h * 0.3f
+            val colW = (right - left - gap * (cols - 1)) / cols
+            if (cols == 2) c.drawRect(left + colW + gap / 2, h * 0.26f, left + colW + gap / 2 + max(1f, k), h * 0.74f,
+                Paint().apply { color = (sub and 0x00FFFFFF) or (0x33 shl 24) })
+            shown.forEachIndexed { i, e ->
+                val col = i / 2; val row = i % 2
+                val rowsInCol = min(2, shown.size - col * 2)
+                val y = if (rowsInCol == 1) h / 2 else h * (0.35f + row * 0.31f)
+                eventLine(e, left + col * (colW + gap), y, colW, size, e.day != today)
+            }
+            sticker(h * 0.56f, true)
             return
         }
 
         val unit: Float; val m: Float
         if (wide) { unit = small(H * 0.085f); m = H * 0.1f } else { unit = small(min(W * 0.075f, H * 0.075f)); m = min(W, H) * 0.1f }
-        // 머리글: 큰 세리프 날짜 + 요일 (날씨 위젯과 같은 글꼴)
-        val dSize = if (wide) H * 0.2f else min(W * 0.2f, H * 0.12f)
-        val dp_ = p(dSize, SERIF, fg)
-        val baseY = m * 1.1f - dp_.fontMetrics.ascent * 0.92f
-        c.drawText(md, m * 1.2f, baseY, dp_)
-        c.drawText(wk, m * 1.2f + dp_.measureText(md) + unit * 0.5f, baseY, p(small(dSize * 0.36f), MED, sub))
-        sticker(if (wide) H * 0.36f else min(W, H) * 0.3f, events.isNotEmpty())
-        var top = baseY + unit * 1.6f
+        // 머리글 없이 바로 목록 (날짜는 날씨·날짜 위젯이 크게 보여줌). 첫 줄은 모서리 테이프 아래에서 시작
+        sticker(if (wide) H * 0.32f else min(W, H) * 0.28f, events.isNotEmpty())
+        var top = m * 1.2f + unit * 1.2f
 
         if (wide) {                               // ---- 4×2: [오늘 | 다가오는 일정] ----
             val left = m * 1.2f; val gap = unit * 1.2f
