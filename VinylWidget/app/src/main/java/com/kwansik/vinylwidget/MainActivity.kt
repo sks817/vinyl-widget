@@ -77,6 +77,15 @@ class MainActivity : Activity() {
         root.addView(button("날씨 위젯 모두 꾸미기 (1×4)") { openConfig(Kind.WEATHER_WIDE) })
         root.addView(button("날씨 지금 새로고침") { refreshLocationAndFetch() })
 
+        // 더 많은 위젯
+        root.addView(title("일정 메모 · 병맛 스티커"))
+        root.addView(button("캘린더 권한 허용 (일정 메모)") {
+            requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR), 2)
+        })
+        root.addView(button("일정 메모 위젯 추가 (4×1, 늘리면 4×2·2×4)") { pin(MemoWidgetProvider::class.java) })
+        root.addView(button("일정 메모 모두 꾸미기") { openConfig(Kind.MEMO) })
+        root.addView(button("병맛 스티커 추가 (1×1, 누르면 고른 앱 열기)") { pin(StickerWidgetProvider::class.java) })
+
         root.addView(body().apply {
             setPadding(0, pad, 0, 0)
             text = "날씨 정보: Open-Meteo\n" +
@@ -113,6 +122,11 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 2) {                       // 캘린더 → 일정 메모 다시 그리기
+            val app = applicationContext
+            Thread { MemoWidget.renderAll(app) }.start()
+            return
+        }
         if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             refreshLocationAndFetch()
         } else {

@@ -46,7 +46,19 @@ object WeatherWidget {
         }
     }
 
-    fun build(ctx: Context, style: WidgetStyle, d: WeatherData, wDp: Float = 170f, hDp: Float = 170f): RemoteViews {
+    /** 밤 글자색: 고른 밤 색, 아니면(자동) 어두운 글자색만 크림색으로 바꿈 → 어두운 밤 그림 위 숫자가 안 보이는 일 없음 */
+    const val NIGHT_AUTO_TEXT = 0xFFF6F1E7.toInt()
+    fun forTime(style: WidgetStyle, d: WeatherData): WidgetStyle {
+        if (!d.isNight()) return style
+        return when {
+            style.nightFg != 0 -> style.copy(fg = style.nightFg)
+            style.fg != Palette.AUTO && android.graphics.Color.luminance(style.fg) < 0.35f -> style.copy(fg = NIGHT_AUTO_TEXT)
+            else -> style
+        }
+    }
+
+    fun build(ctx: Context, styleIn: WidgetStyle, d: WeatherData, wDp: Float = 170f, hDp: Float = 170f): RemoteViews {
+        val style = forTime(styleIn, d)
         val design = style.design.coerceIn(1, DESIGN_NAMES.size)
         if (BigScene.isBig(wDp, hDp)) {          // 옆으로 늘려 4×2가 되면 4×2 배치
             val look = when (design) { 1, 3 -> BigScene.ART; 8, 9, 10 -> BigScene.CHAR; else -> BigScene.PLAIN }
@@ -68,7 +80,8 @@ object WeatherWidget {
     }
 
     /** 1×4 날씨 위젯 */
-    fun buildWide(ctx: Context, style: WidgetStyle, d: WeatherData, wDp: Float, hDp: Float): RemoteViews {
+    fun buildWide(ctx: Context, styleIn: WidgetStyle, d: WeatherData, wDp: Float, hDp: Float): RemoteViews {
+        val style = forTime(styleIn, d)
         val design = style.design.coerceIn(1, WIDE_DESIGN_NAMES.size)
         if (BigScene.isBig(wDp, hDp)) {          // 아래로 늘려 4×2가 되면 4×2 배치
             val look = when (design) { 1 -> BigScene.ART; 4, 5, 6 -> BigScene.CHAR; else -> BigScene.PLAIN }

@@ -7,9 +7,16 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- 날씨용 대략적 위치. 백그라운드 위치·부팅 권한은 쓰지 않음 -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- 일정 메모지 위젯: 기기 캘린더 일정 읽기 (제목·시간만, 저장·전송 없음) -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
 
     <queries>
         <package android:name="com.google.android.apps.youtube.music" />
+        <!-- 스티커 위젯: 누르면 열 앱을 고르기 위해 홈 화면 아이콘이 있는 앱 목록을 봄 -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
     </queries>
 
     <application
@@ -85,6 +92,39 @@
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/widget_weather_wide_info" />
         </receiver>
+
+        <activity
+            android:name=".StickerConfigActivity"
+            android:label="@string/sticker_label"
+            android:exported="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <receiver android:name=".StickerWidgetProvider" android:exported="true"
+            android:label="@string/sticker_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_sticker_info" />
+        </receiver>
+
+        <receiver android:name=".MemoWidgetProvider" android:exported="true"
+            android:label="@string/memo_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/widget_memo_info" />
+        </receiver>
+
+        <service
+            android:name=".MemoJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <receiver android:name=".WidgetActionReceiver" android:exported="false" />
     </application>

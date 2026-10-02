@@ -83,6 +83,7 @@ class ConfigActivity : Activity() {
     private var bg = 0
     private var disc = 0
     private var player = WidgetStyle.VINYL
+    private var nightFg = 0
 
     private val hsv = FloatArray(3)
     private var updatingUi = false
@@ -129,7 +130,7 @@ class ConfigActivity : Activity() {
         white = s.white; glass = s.glass; transparency = s.transparency; color = s.fg
         design = s.design; corner = s.corner; glassArt = s.glassArt; artShadow = s.artShadow
         quirky = s.quirky; point = s.point; bg = s.bg
-        disc = s.disc; player = s.player
+        disc = s.disc; player = s.player; nightFg = s.nightFg
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(buildPreview(), LinearLayout.LayoutParams(MATCH, dp(236)))
@@ -143,7 +144,7 @@ class ConfigActivity : Activity() {
 
     private fun targetId(): Int? = widgetId.takeIf { it != AppWidgetManager.INVALID_APPWIDGET_ID }
     private fun resultIntent() = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt, artShadow, quirky, point, bg, disc, player)
+    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt, artShadow, quirky, point, bg, disc, player, nightFg)
     private fun isWeather() = kind == Kind.WEATHER || kind == Kind.WEATHER_WIDE
 
     // ================= 미리보기 =================
@@ -208,6 +209,7 @@ class ConfigActivity : Activity() {
             if (kind == Kind.WEATHER) body.addView(calendarCard())
         }
         if (KindConfig.isMusic(kind)) body.addView(playerCard())
+        if (kind == Kind.MEMO) body.addView(memoCard())
         body.addView(themeCard())
         body.addView(backgroundCard())
         body.addView(colorCard())
@@ -287,12 +289,52 @@ class ConfigActivity : Activity() {
         return card
     }
 
+    /** 테이프 색: 크라프트지 + 파스텔 + 배경화면 색 */
+    private val tapePresets by lazy {
+        intArrayOf(
+            MemoWidget.DEFAULT_TAPE, 0xFFF7B7C4.toInt(), 0xFFF9D97A.toInt(), 0xFFA8DBC0.toInt(), 0xFFA9C8F0.toInt(),
+            0xFFC9B6F2.toInt(), getColor(android.R.color.system_accent1_200), getColor(android.R.color.system_accent3_200),
+            0xFFE8E4DC.toInt(), 0xFF6B6158.toInt()
+        ).map { it or 0xFF000000.toInt() }.toIntArray()
+    }
+
+    // ---- 일정 메모: 캘린더 권한 + 테이프 색 ----
+    private lateinit var permBtn: TextView
+    private fun memoCard(): View {
+        val card = card("캘린더", "기기에 연결된 캘린더(구글·삼성 등)의 일정 제목과 시간만 읽어요. 저장하거나 보내지 않아요")
+        permBtn = TextView(this).apply {
+            textSize = 15f; gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setOnClickListener { requestPermissions(arrayOf(android.Manifest.permission.READ_CALENDAR), 7) }
+        }
+        card.addView(permBtn, LinearLayout.LayoutParams(MATCH, dp(46)).apply { topMargin = dp(8) })
+        card.addView(caption("마스킹테이프 색").apply { setPadding(0, dp(14), 0, dp(2)) })
+        val sws = mutableListOf<View>()
+        card.addView(swatchGrid(tapePresets, sws) { c -> point = c; refreshAll(); renderPreview() })
+        refreshers += {
+            val ok = CalendarReader.hasPermission(this)
+            permBtn.text = if (ok) "✓ 캘린더 권한 허용됨" else "캘린더 권한 허용하기"
+            permBtn.isEnabled = !ok
+            permBtn.setTextColor(if (ok) onSurfaceVar else onAccent)
+            permBtn.background = if (ok) rounded(Color.TRANSPARENT, 22f, outline, 1) else rounded(accent, 22f)
+            sws.forEach { styleSwatch(it, it.tag as Int == point) }
+        }
+        return card
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        refreshAll(); renderPreview()
+        if (kind == Kind.MEMO) KindConfig.refreshAll(this, kind)
+    }
+
     // ---- 병맛 테마 ----
     private fun themeCard(): View {
         val music = KindConfig.isMusic(kind)
         val card = card("테마", null)
         card.addView(toggleRow("병맛 테마",
-            if (music) "만화풍 레코드판·왕눈이 라벨 / 눈알이 도는 카세트" else "날씨 아이콘이 표정 있는 캐릭터로 바뀌어요",
+            if (music) "만화풍 레코드판·왕눈이 라벨 / 눈알이 도는 카세트"
+            else if (kind == Kind.MEMO) "오른쪽 위 모서리에 병맛 스티커 캐릭터가 붙어요" else "날씨 아이콘이 표정 있는 캐릭터로 바뀌어요",
             { quirky }) { quirky = it })
         return card
     }
@@ -429,7 +471,31 @@ class ConfigActivity : Activity() {
         }
         picker.addView(hexInput, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
         card.addView(picker)
+        if (isWeather()) card.addView(nightSection())
         return card
+    }
+
+    /** 밤 글자색: 해가 지면 이 색. 자동 = 고른 글자색이 어두우면 밤엔 크림색으로 (어두운 밤 그림 위에서도 숫자가 보이게) */
+    private val nightPresets = intArrayOf(
+        WeatherWidget.NIGHT_AUTO_TEXT, 0xFFFFFFFF.toInt(), 0xFFFFE8A3.toInt(), 0xFFFFC9D6.toInt(), 0xFFBFE7FF.toInt(),
+        0xFFC8F2D4.toInt(), 0xFFE3D4FF.toInt(), 0xFFFFD2A8.toInt(), 0xFFB9C3D6.toInt(), 0xFF8FB8FF.toInt()
+    )
+
+    private fun nightSection(): View {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        box.addView(divider(), LinearLayout.LayoutParams(MATCH, dp(1)).apply { topMargin = dp(12) })
+        box.addView(text("밤 글자색 🌙", 15f, onSurface, bold = true).apply { setPadding(0, dp(12), 0, dp(2)) })
+        box.addView(text("해가 지면 이 색으로 바뀌어요. 자동은 어두운 글자색만 밝게 바꿔요", 12.5f, onSurfaceVar))
+        val auto = pill("✦  자동 · 밤엔 밝게")
+        box.addView(auto, LinearLayout.LayoutParams(WRAP, dp(38)).apply { topMargin = dp(10); bottomMargin = dp(4) })
+        val sws = mutableListOf<View>()
+        box.addView(swatchGrid(nightPresets, sws) { c -> nightFg = c; refreshAll(); renderPreview() })
+        auto.setOnClickListener { nightFg = 0; refreshAll(); renderPreview() }
+        refreshers += {
+            styleChip(auto, nightFg == 0)
+            sws.forEach { styleSwatch(it, it.tag as Int == nightFg) }
+        }
+        return box
     }
 
     // ---- 하단 고정 버튼 ----
