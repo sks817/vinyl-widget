@@ -52,9 +52,9 @@ object WeatherWidget {
         val ownCard = design == CARD_2X2
         Palette.applyBackground(rv, style, visible = !ownCard)
         val scene = WeatherScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style),
-            Palette.shadow(ctx, style), style.quirky)
+            Palette.shadow(ctx, style), style.quirky, style.fg != Palette.AUTO)
         scene.draw(design, d, style.corner, style.glassArt,
-            style.artShadow && Palette.bgHidden(style), style.point, WidgetPrefs.alphaOf(style.transparency))
+            style.artShadow && Palette.bgHidden(style), style.point, WidgetPrefs.alphaOf(style.transparency), style.bg)
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
         rv.setOnClickPendingIntent(R.id.w_tap_refresh, refreshIntent(ctx))
@@ -71,9 +71,10 @@ object WeatherWidget {
         val ownCard = (simple && !style.glass) || design == CARD_1X4
         Palette.applyBackground(rv, style, visible = !ownCard)
         val main = Palette.text(ctx, style)
-        val scene = WideScene(ctx, wDp, hDp, main, Palette.sub(ctx, style), Palette.accent(ctx, style), Palette.shadow(ctx, style), style.quirky)
-        scene.draw(design, d, if (ownCard) WidgetPrefs.alphaOf(style.transparency) else 0, style.white,
-            style.corner, style.glassArt, style.artShadow && Palette.bgHidden(style))
+        val scene = WideScene(ctx, wDp, hDp, main, Palette.sub(ctx, style), Palette.accent(ctx, style), Palette.shadow(ctx, style),
+            style.quirky, style.fg != Palette.AUTO)
+        scene.draw(design, d, if (ownCard) WidgetPrefs.alphaOf(style.transparency) else 0, Palette.bgLight(style),
+            style.corner, style.glassArt, style.artShadow && Palette.bgHidden(style), style.bg)
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
         rv.setOnClickPendingIntent(R.id.w_tap_refresh, refreshIntent(ctx))
@@ -85,8 +86,9 @@ object WeatherWidget {
             rv.setTextViewTextSize(R.id.w_time, dip, h * 0.38f)
             rv.setViewLayoutMargin(R.id.w_time, RemoteViews.MARGIN_END, h * 0.22f, dip)
             rv.setViewLayoutMargin(R.id.w_time, RemoteViews.MARGIN_BOTTOM, h * 0.17f, dip)
-            if (ownCard) {                                        // 회색 카드 글자는 카드에 맞춘 고정 색
-                rv.setTextColor(R.id.w_time, if (style.white) 0xFF1E2128.toInt() else 0xFFFFFFFF.toInt())
+            if (ownCard) {                                        // 카드 글자: 직접 고른 색, 아니면 카드 밝기에 맞춘 색
+                rv.setTextColor(R.id.w_time, if (style.fg != Palette.AUTO) style.fg
+                    else if (Palette.bgLight(style)) 0xFF1E2128.toInt() else 0xFFFFFFFF.toInt())
             } else {
                 Palette.setTextColor(ctx, rv, R.id.w_time, style)
             }

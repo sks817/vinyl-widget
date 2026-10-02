@@ -57,6 +57,16 @@ class ConfigActivity : Activity() {
         ).map { it or 0xFF000000.toInt() }.toIntArray()
     }
 
+    /** 배경 '컬러' 추천 색: 배경화면에서 뽑은 옅은 색·진한 색 + 캠핑 톤(모래·복숭아·민트·숲·밤하늘) */
+    private val bgPresets by lazy {
+        intArrayOf(
+            getColor(android.R.color.system_accent1_100), getColor(android.R.color.system_accent2_100),
+            getColor(android.R.color.system_accent3_100), getColor(android.R.color.system_accent1_700),
+            getColor(android.R.color.system_neutral2_800),
+            0xFFF6E7C8.toInt(), 0xFFFFD6C2.toInt(), 0xFFCFE6D4.toInt(), 0xFF2F4A3A.toInt(), 0xFF22304F.toInt()
+        ).map { it or 0xFF000000.toInt() }.toIntArray()
+    }
+
     // ---- 꾸미기 값 ----
     private var widgetId = AppWidgetManager.INVALID_APPWIDGET_ID
     private var kind = Kind.MUSIC
@@ -70,6 +80,7 @@ class ConfigActivity : Activity() {
     private var artShadow = true
     private var quirky = false
     private var point = WidgetStyle.DEFAULT_POINT
+    private var bg = 0
 
     private val hsv = FloatArray(3)
     private var updatingUi = false
@@ -115,7 +126,7 @@ class ConfigActivity : Activity() {
         val s = WidgetPrefs.style(this, kind, targetId())
         white = s.white; glass = s.glass; transparency = s.transparency; color = s.fg
         design = s.design; corner = s.corner; glassArt = s.glassArt; artShadow = s.artShadow
-        quirky = s.quirky; point = s.point
+        quirky = s.quirky; point = s.point; bg = s.bg
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(buildPreview(), LinearLayout.LayoutParams(MATCH, dp(236)))
@@ -129,7 +140,7 @@ class ConfigActivity : Activity() {
 
     private fun targetId(): Int? = widgetId.takeIf { it != AppWidgetManager.INVALID_APPWIDGET_ID }
     private fun resultIntent() = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt, artShadow, quirky, point)
+    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt, artShadow, quirky, point, bg)
     private fun isWeather() = kind == Kind.WEATHER || kind == Kind.WEATHER_WIDE
 
     // ================= 미리보기 =================
@@ -294,18 +305,29 @@ class ConfigActivity : Activity() {
 
     // ---- 배경 ----
     private fun backgroundCard(): View {
-        val card = card("배경", "없음: 배경화면 위에 그대로 · 유리: 배경화면 색을 띤 반투명 카드")
-        // (이름, 유리, 흰색, 바탕 없음)
-        data class Bg(val name: String, val glass: Boolean, val white: Boolean, val none: Boolean)
+        val card = card("배경", "없음: 배경화면 위에 그대로 · 유리: 배경화면 색을 띤 반투명 카드 · 컬러: 원하는 색" +
+            if (isWeather()) " (캐릭터 카드는 카드 색)" else "")
+        // (이름, 유리, 흰색, 바탕 없음, 컬러)
+        data class Bg(val name: String, val glass: Boolean, val white: Boolean, val none: Boolean, val color: Boolean = false)
         val options = listOf(Bg("없음", true, false, true), Bg("유리", true, false, false),
-            Bg("검정", false, false, false), Bg("흰색", false, true, false))
+            Bg("검정", false, false, false), Bg("흰색", false, true, false), Bg("컬러", false, false, false, true))
+        val bgSwatches = mutableListOf<View>()
+        val colorPick = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         card.addView(segmented(options.map { it.name },
-            selected = { if (transparency >= 100) 0 else if (glass) 1 else if (white) 3 else 2 }) { i ->
+            selected = { if (transparency >= 100) 0 else if (glass) 1 else if (bg != 0) 4 else if (white) 3 else 2 }) { i ->
             val o = options[i]
             glass = o.glass; white = o.white
+            bg = if (o.color) (if (bg != 0) bg else bgPresets[0]) else 0
             setTransparency(if (o.none) 100 else if (transparency >= 100) 0 else transparency)
             refreshAll(); renderPreview()
         })
+        colorPick.addView(caption("배경화면에 어울리는 추천 색").apply { setPadding(0, dp(12), 0, dp(2)) })
+        colorPick.addView(swatchGrid(bgPresets, bgSwatches) { c -> bg = c; refreshAll(); renderPreview() })
+        card.addView(colorPick)
+        refreshers += {
+            colorPick.visibility = if (bg != 0 && transparency < 100) View.VISIBLE else View.GONE
+            bgSwatches.forEach { styleSwatch(it, it.tag as Int == bg) }
+        }
         card.addView(space(14))
         card.addView(slider("배경 투명도", 100, transparency, { "$it%" }, keep = { bar, value -> transBar = bar; transValue = value }) {
             transparency = it; refreshAll(); renderPreview()

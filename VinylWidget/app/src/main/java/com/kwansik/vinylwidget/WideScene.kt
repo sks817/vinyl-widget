@@ -25,7 +25,9 @@ import kotlin.math.min
 class WideScene(
     private val ctx: Context, wDp: Float, hDp: Float,
     private val fg: Int, private val sub: Int = fg, private val accent: Int = fg,
-    private val shadow: Int = 0, private val quirky: Boolean = true
+    private val shadow: Int = 0, private val quirky: Boolean = true,
+    /** 사용자가 글자색을 직접 골랐는가 → 그림·카드 위 글자도 그 색 */
+    private val customFg: Boolean = false
 ) {
     /** 바탕 없이 배경화면 위에 쓰는 글자(fg/sub 색)에만 옅은 그림자 */
     private fun Paint.shade(): Paint {
@@ -84,7 +86,7 @@ class WideScene(
     /** cardAlpha = 0이면 회색 카드를 그리지 않고(유리 배경 위) 글자는 fg/sub 색을 씀 */
     fun draw(
         design: Int, d: WeatherData, cardAlpha: Int = 148, lightCard: Boolean = false,
-        corner: Int = -1, glassArt: Boolean = false, artShadow: Boolean = false
+        corner: Int = -1, glassArt: Boolean = false, artShadow: Boolean = false, cardColor: Int = 0
     ) {
         val today = LocalDate.now()
         val md = "${today.monthValue}.${today.dayOfMonth}"
@@ -98,12 +100,12 @@ class WideScene(
                 val h = H
                 val ownCard = cardAlpha > 0
                 if (ownCard) {
-                    val cardRgb = if (lightCard) 0x00F2F3F5 else 0x00272C38
+                    val cardRgb = if (cardColor != 0) cardColor and 0x00FFFFFF else if (lightCard) 0x00F2F3F5 else 0x00272C38
                     c.drawRoundRect(RectF(0f, 0f, W, H), h * 0.36f, h * 0.36f,
                         Paint(Paint.ANTI_ALIAS_FLAG).apply { color = (cardAlpha shl 24) or cardRgb })
                 }
-                val main = if (!ownCard) fg else if (lightCard) 0xFF1E2128.toInt() else 0xFFFFFFFF.toInt()
-                val soft = if (!ownCard) sub else if (lightCard) 0xFF5B616C.toInt() else 0xB3FFFFFF.toInt()
+                val main = if (!ownCard || customFg) fg else if (lightCard) 0xFF1E2128.toInt() else 0xFFFFFFFF.toInt()
+                val soft = if (!ownCard || customFg) sub else if (lightCard) 0xFF5B616C.toInt() else 0xB3FFFFFF.toInt()
                 // 오른쪽: 날짜(작게). 시각(크게)은 시스템 시계 부품(TextClock)이 그 아래에 들어감
                 val right = W - h * 0.22f
                 val dateP = paint(small(h * 0.15f), SYS, soft, Paint.Align.RIGHT)
@@ -138,7 +140,7 @@ class WideScene(
                 }
             }
             4, 5, 6 -> { // ---- 캐릭터 포스터 / 컬러 카드 / 헤드라인 ----
-                CharacterLayouts(ctx, c, W, H, k, fg, sub, shadow).draw1x4(design - 4, d, cardAlpha)
+                CharacterLayouts(ctx, c, W, H, k, fg, sub, shadow, customFg, cardColor).draw1x4(design - 4, d, cardAlpha)
             }
             1 -> { // ---- 캠핑 파노라마 ----
                 val pad = 6f * k
@@ -156,26 +158,27 @@ class WideScene(
                 }
                 c.restore()
                 if (glassArt) GlassArt.draw(c, r, rad)
-                val dark = !night && kind != "rain"
-                val main = if (dark) 0xFF23262E.toInt() else 0xFFFBF1DC.toInt()
-                val soft = if (dark) 0xFF3E434D.toInt() else 0xFFE2D7C6.toInt()
+                val art = ArtText(c, quirky, if (customFg) fg else null, sub, !night && kind != "rain")
+                val main = art.main; val soft = art.sub
+                fun ap(size: Float, tf: Typeface, col: Int, a: Paint.Align = Paint.Align.LEFT) =
+                    Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = tf; color = col; textAlign = a }
                 // 좌·우 블록 모두 [큰 줄 0.46h + 간격 0.05h + 작은 줄] 을 세로 가운데에
                 val big = h * 0.46f; val sm = small(h * 0.17f)
                 val top = r.top + (h - (big + h * 0.05f + sm)) / 2
                 val y1 = top + big / 2; val y2 = top + big + h * 0.05f + sm / 2
-                textMid(md, r.left + h * 0.3f, y1, paint(big, SERIF, main))
-                textMid(wk, r.left + h * 0.32f, y2, paint(sm, SANS_M, soft))
+                art.mid(md, r.left + h * 0.3f, y1, ap(big, SERIF, main))
+                art.mid(wk, r.left + h * 0.32f, y2, ap(sm, SANS_M, soft))
                 val right = r.right - h * 0.3f
                 if (msg != null) {
-                    textMid(msg, right, r.centerY(), paint(sm, SANS, main, Paint.Align.RIGHT))
+                    art.mid(msg, right, r.centerY(), ap(sm, SANS, main, Paint.Align.RIGHT))
                 } else {
-                    val tp = paint(big, SERIF, main, Paint.Align.RIGHT)
-                    textMid(d.tempText(), right, y1, tp)
+                    val tp = ap(big, SERIF, main, Paint.Align.RIGHT)
+                    art.mid(d.tempText(), right, y1, tp)
                     val ic = big * 1.05f
                     // 병맛 그림은 하늘에 이미 캐릭터가 있으니 기온 옆 아이콘은 생략
                     if (!quirky) wIcon(d, right - tp.measureText(d.tempText()) - big * 0.08f - ic / 2, y1, ic, main)
                     val range = d.rangeText().replace(" ", "")
-                    textMid(if (range.isEmpty()) d.cond() else range, right, y2, paint(sm, SANS_M, soft, Paint.Align.RIGHT))
+                    art.mid(if (range.isEmpty()) d.cond() else range, right, y2, ap(sm, SANS_M, soft, Paint.Align.RIGHT))
                 }
             }
             else -> { // ---- 텐트 + 날짜 ----

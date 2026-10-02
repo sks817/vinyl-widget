@@ -14,11 +14,13 @@ enum class Kind { MUSIC, WEATHER, MUSIC_WIDE, WEATHER_WIDE }
  * corner = 그림 모서리 둥글기(짧은 변의 %, -1이면 디자인 기본값), glassArt = 그림 유리 캡슐 효과,
  * artShadow = 그림 그림자 (바탕 없음일 때만 그림)
  * quirky = 병맛 테마 (날씨: 캐릭터 아이콘, 레코드: 만화풍 판과 왕눈이 라벨), point = 달력 디자인 윗부분 색
+ * bg = 배경 '컬러'에서 고른 바탕색 (0이면 검정/흰색, 캐릭터 카드는 날씨마다 바뀌는 색)
  */
 data class WidgetStyle(
     val white: Boolean, val transparency: Int, val fg: Int, val design: Int, val glass: Boolean = true,
     val corner: Int = -1, val glassArt: Boolean = true, val artShadow: Boolean = true,
-    val quirky: Boolean = false, val point: Int = WidgetStyle.DEFAULT_POINT
+    val quirky: Boolean = false, val point: Int = WidgetStyle.DEFAULT_POINT,
+    val bg: Int = 0
 ) {
     companion object {
         /** 달력 디자인 윗부분 기본 색 (벽돌색) */
@@ -51,7 +53,7 @@ object KindConfig {
     }
     fun colorTitle(k: Kind) = if (isMusic(k)) "버튼·글자 색상" else "글자·아이콘 색상"
     fun colorNote(k: Kind): String? =
-        if (!isMusic(k)) "풍경 그림 위 글자는 그림에 맞춰 자동으로 바뀌고, 그림 밖 글자는 이 색을 씁니다" else null
+        if (!isMusic(k)) "자동이면 그림·배경에 맞춰 바뀌고, 색을 고르면 그림 위 글자까지 모두 그 색이 돼요" else null
     /** 그림 모서리 둥글기 기본값(짧은 변의 %): 2×2 재킷 11, 1×4 파노라마 30 */
     fun defaultCorner(k: Kind) = if (k == Kind.WEATHER_WIDE) 30 else 11
 
@@ -115,7 +117,8 @@ object WidgetPrefs {
             p.getBoolean(dk(k, "ga"), d.glassArt),
             p.getBoolean(dk(k, "sh"), d.artShadow),
             p.getBoolean(dk(k, "q"), d.quirky),
-            p.getInt(dk(k, "pc"), d.point)
+            p.getInt(dk(k, "pc"), d.point),
+            p.getInt(dk(k, "bc"), d.bg)
         )
         if (id == null) return base
         return WidgetStyle(
@@ -128,7 +131,8 @@ object WidgetPrefs {
             p.getBoolean("ga_$id", base.glassArt),
             p.getBoolean("sh_$id", base.artShadow),
             p.getBoolean("q_$id", base.quirky),
-            p.getInt("pc_$id", base.point)
+            p.getInt("pc_$id", base.point),
+            p.getInt("bc_$id", base.bg)
         )
     }
 
@@ -139,12 +143,12 @@ object WidgetPrefs {
             e.putBoolean("w_$id", s.white).putInt("a_$id", s.transparency)
                 .putInt("f_$id", s.fg).putInt("d_$id", s.design).putBoolean("g_$id", s.glass)
                 .putInt("r_$id", s.corner).putBoolean("ga_$id", s.glassArt).putBoolean("sh_$id", s.artShadow)
-                .putBoolean("q_$id", s.quirky).putInt("pc_$id", s.point)
+                .putBoolean("q_$id", s.quirky).putInt("pc_$id", s.point).putInt("bc_$id", s.bg)
         } else {
             e.putBoolean(dk(k, "w"), s.white).putInt(dk(k, "a"), s.transparency)
                 .putInt(dk(k, "f"), s.fg).putInt(dk(k, "d"), s.design).putBoolean(dk(k, "g"), s.glass)
                 .putInt(dk(k, "r"), s.corner).putBoolean(dk(k, "ga"), s.glassArt).putBoolean(dk(k, "sh"), s.artShadow)
-                .putBoolean(dk(k, "q"), s.quirky).putInt(dk(k, "pc"), s.point)
+                .putBoolean(dk(k, "q"), s.quirky).putInt(dk(k, "pc"), s.point).putInt(dk(k, "bc"), s.bg)
             val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, KindConfig.provider(k)))
             ids.forEach { removeId(e, it) }
         }
@@ -158,10 +162,10 @@ object WidgetPrefs {
     }
 
     private fun removeId(e: android.content.SharedPreferences.Editor, id: Int) {
-        for (f in listOf("w", "t", "c", "d", "a", "f", "g", "r", "ga", "sh", "q", "pc")) e.remove("${f}_$id")
+        for (f in listOf("w", "t", "c", "d", "a", "f", "g", "r", "ga", "sh", "q", "pc", "bc")) e.remove("${f}_$id")
     }
 
     fun alphaOf(transparency: Int): Int = ((100 - transparency) * 255 / 100).coerceIn(0, 255)
 
-    fun bgColor(s: WidgetStyle): Int = if (s.white) Color.WHITE else 0xFF141414.toInt()
+    fun bgColor(s: WidgetStyle): Int = if (s.bg != 0) s.bg else if (s.white) Color.WHITE else 0xFF141414.toInt()
 }

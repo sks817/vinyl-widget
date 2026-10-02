@@ -18,6 +18,9 @@ object Palette {
     fun night(ctx: Context) =
         (ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 
+    /** 바탕이 밝은 색인가 (흰색, 또는 '컬러'에서 고른 밝은 색) → 진한 글자 */
+    fun bgLight(s: WidgetStyle): Boolean = if (s.bg != 0) android.graphics.Color.luminance(s.bg) > 0.5f else s.white
+
     /** 바탕 없음(투명도 100%): 글자가 배경화면 위에 바로 놓임 */
     fun bgHidden(s: WidgetStyle) = s.transparency >= 100
 
@@ -44,7 +47,7 @@ object Palette {
         s.fg != AUTO -> s.fg
         bgHidden(s) -> ctx.getColor(if (onWallpaperDark(ctx, s)) android.R.color.system_neutral1_900 else android.R.color.system_neutral1_10)
         s.glass -> ctx.getColor(R.color.glass_text)
-        s.white -> ctx.getColor(android.R.color.system_neutral1_900)
+        bgLight(s) -> ctx.getColor(android.R.color.system_neutral1_900)
         else -> ctx.getColor(android.R.color.system_neutral1_10)
     }
 
@@ -53,7 +56,7 @@ object Palette {
         s.fg != AUTO -> (s.fg and 0x00FFFFFF) or (0xB3 shl 24)
         bgHidden(s) -> ctx.getColor(if (onWallpaperDark(ctx, s)) android.R.color.system_neutral2_700 else android.R.color.system_neutral2_100)
         s.glass -> ctx.getColor(R.color.glass_sub)
-        s.white -> ctx.getColor(android.R.color.system_neutral2_600)
+        bgLight(s) -> ctx.getColor(android.R.color.system_neutral2_600)
         else -> ctx.getColor(android.R.color.system_neutral2_200)
     }
 
@@ -62,7 +65,7 @@ object Palette {
         s.fg != AUTO -> s.fg
         bgHidden(s) -> ctx.getColor(if (onWallpaperDark(ctx, s)) android.R.color.system_accent1_700 else android.R.color.system_accent1_100)
         s.glass -> ctx.getColor(R.color.glass_accent)
-        s.white -> ctx.getColor(android.R.color.system_accent1_600)
+        bgLight(s) -> ctx.getColor(android.R.color.system_accent1_600)
         else -> ctx.getColor(android.R.color.system_accent1_200)
     }
 

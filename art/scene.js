@@ -32,13 +32,13 @@ function ridge(W, y0, amp, seed, step, H) {
 function hill(W, y, bulge, H) { return `M0 ${H} L0 ${y} C${W * 0.3} ${y - bulge} ${W * 0.7} ${y - bulge * 0.6} ${W} ${y + bulge * 0.2} L${W} ${H} Z`; }
 
 // 소나무: 3단 삼각형, 끝이 살짝 둥근 플랫 스타일
-function pine(x, base, h, col, snow) {
+function pine(x, base, h, col, snow, outline = false) {
   const w = h * 0.42; let s = `<g>`;
   s += `<rect x="${x - h * 0.025}" y="${base - h * 0.12}" width="${h * 0.05}" height="${h * 0.12}" fill="${col}" />`;
   for (let i = 0; i < 3; i++) {
     const top = base - h + i * h * 0.24, bot = base - h * 0.08 - (2 - i) * h * 0.2;
     const ww = w * (0.55 + i * 0.25);
-    s += `<path d="M${x} ${top} L${x + ww / 2} ${bot} Q${x} ${bot + h * 0.05} ${x - ww / 2} ${bot} Z" fill="${col}" ${Q ? OL(h * 0.035) : `stroke="${col}" stroke-width="${h * 0.02}" stroke-linejoin="round"`}/>`;
+    s += `<path d="M${x} ${top} L${x + ww / 2} ${bot} Q${x} ${bot + h * 0.05} ${x - ww / 2} ${bot} Z" fill="${col}" ${Q && outline ? OL(h * 0.035) : `stroke="${col}" stroke-width="${h * 0.02}" stroke-linejoin="round"`}/>`;
     if (snow) s += `<path d="M${x} ${top} L${x + ww * 0.2} ${top + (bot - top) * 0.4} Q${x} ${top + (bot - top) * 0.5} ${x - ww * 0.2} ${top + (bot - top) * 0.4} Z" fill="#f4f7fb" opacity=".92"/>`;
   }
   return s + `</g>`;
@@ -183,7 +183,7 @@ function clouds(W, H, y, n, col, op, seed, scale) {
     const cx = W * (CLOUD_X[0] + r() * (CLOUD_X[1] - CLOUD_X[0])), cy = y + (r() - 0.5) * H * 0.1, w = W * scale * (0.6 + r() * 0.6);
     const shapes = `<ellipse cx="${cx}" cy="${cy}" rx="${w * 0.5}" ry="${w * 0.12}"/><circle cx="${cx - w * 0.14}" cy="${cy - w * 0.07}" r="${w * 0.15}"/><circle cx="${cx + w * 0.1}" cy="${cy - w * 0.11}" r="${w * 0.2}"/>`;
     // 병맛: 같은 모양을 굵은 잉크로 한 번, 그 위에 색으로 한 번 → 바깥 윤곽선만 남음
-    if (Q) s += `<g opacity="${Math.min(1, op + 0.1)}"><g fill="${INK}" stroke="${INK}" stroke-width="${Math.max(4, w * 0.036)}">${shapes}</g><g fill="${col}">${shapes}</g></g>`;
+    if (Q) s += `<g opacity="${Math.min(1, op + 0.1)}"><g fill="${INK}" fill-opacity=".45" stroke="${INK}" stroke-opacity=".45" stroke-width="${Math.max(3, w * 0.022)}">${shapes}</g><g fill="${col}">${shapes}</g></g>`;
     else s += `<g opacity="${op}" fill="${col}">${shapes}</g>`;
   }
   return s;
@@ -223,7 +223,7 @@ function scene(kind, night, fmt, quirky = false) {
   const pa = fmt === 'pa';
   const horizon = pa ? H * 0.76 : fmt === 'sq' ? H * 0.6 : H * 0.70;
   const id = `${key}${fmt}${Q ? 'q' : ''}`;
-  CLOUD_X = pa ? [0.33, 0.67] : [0.08, 0.98];
+  CLOUD_X = pa ? [0.33, 0.67] : (Q && fmt === 'sq') ? [0.5, 0.98] : [0.08, 0.98];   // 병맛 재킷: 왼쪽 위 날짜 자리 비움
   let s = `<defs><linearGradient id="sky${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.sky[0]}"/><stop offset=".62" stop-color="${p.sky[1]}"/><stop offset="1" stop-color="${p.sky[2]}"/></linearGradient>
     <linearGradient id="gr${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.ground[0]}"/><stop offset="1" stop-color="${p.ground[1]}"/></linearGradient>
     <radialGradient id="sun${id}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff6d8" stop-opacity=".9"/><stop offset=".35" stop-color="#ffe7a8" stop-opacity=".45"/><stop offset="1" stop-color="#ffe7a8" stop-opacity="0"/></radialGradient></defs>`;
@@ -257,10 +257,11 @@ function scene(kind, night, fmt, quirky = false) {
     s += charIcon(name, sx, pa ? H * 0.32 : sy + cs * 0.12, cs);
   }
   // 산 (먼 → 가까운, 대기원근)
-  s += `<path d="${ridge(W, horizon - (pa ? H * 0.12 : H * 0.17), pa ? H * 0.1 : H * 0.12, 5, W / (pa ? 9 : 5), H)}" fill="${p.far}" ${OL(3 * U)}/>`;
-  if (snowy) s += `<path d="${ridge(W, horizon - (pa ? H * 0.12 : H * 0.17), pa ? H * 0.1 : H * 0.12, 5, W / (pa ? 9 : 5), H)}" fill="#fff" opacity="${night ? 0.12 : 0.35}"/>`;
+  const farTop = horizon - (pa ? H * 0.12 : Q ? H * 0.11 : H * 0.17), farAmp = pa ? H * 0.1 : Q ? H * 0.07 : H * 0.12;
+  s += `<path d="${ridge(W, farTop, farAmp, 5, W / (pa ? 9 : 5), H)}" fill="${p.far}"/>`;
+  if (snowy) s += `<path d="${ridge(W, farTop, farAmp, 5, W / (pa ? 9 : 5), H)}" fill="#fff" opacity="${night ? 0.12 : 0.35}"/>`;
   s += `<rect y="${horizon - H * 0.12}" width="${W}" height="${H * 0.14}" fill="${p.haze}" opacity="${night ? 0.08 : 0.18}"/>`;
-  s += `<path d="${ridge(W, horizon - (pa ? H * 0.04 : H * 0.07), pa ? H * 0.05 : H * 0.07, 9, W / (pa ? 12 : 6), H)}" fill="${p.mid}" ${OL(3 * U)}/>`;
+  s += `<path d="${ridge(W, horizon - (pa ? H * 0.04 : H * 0.07), pa ? H * 0.05 : H * 0.07, 9, W / (pa ? 12 : 6), H)}" fill="${p.mid}" ${OL(1.6 * U)}/>`;
 
   // 숲 (뒤쪽 소나무 줄)
   const r = rng(17);
@@ -273,7 +274,7 @@ function scene(kind, night, fmt, quirky = false) {
     s += pine(x, horizon + H * 0.01, hh, p.pine2, snowy);
   }
   // 땅
-  s += `<path d="${hill(W, horizon, pa ? H * 0.04 : H * 0.05, H)}" fill="url(#gr${id})" ${OL(3 * U)}/>`;
+  s += `<path d="${hill(W, horizon, pa ? H * 0.04 : H * 0.05, H)}" fill="url(#gr${id})" ${OL(2.2 * U)}/>`;
 
   // 캠프: 텐트 + 가랜드 + 모닥불 + 의자 + 앞쪽 소나무
   const tw = pa ? H * 0.46 : W * 0.34;
@@ -283,7 +284,7 @@ function scene(kind, night, fmt, quirky = false) {
   const fx = campX - tw * (pa ? 0.9 : ci ? 0.72 : 0.85), fs = tw * (pa ? 0.15 : 0.14);
   // 오른쪽 큰 소나무 + 가랜드
   const px = campX + tw * (pa ? 1.0 : 0.95), ph = tw * (pa ? 1.05 : 1.15);
-  s += pine(px, base + tw * 0.02, ph, p.pine, snowy);
+  s += pine(px, base + tw * 0.02, ph, p.pine, snowy, true);
   s += t.svg;
   s += garland(campX, t.apex - t.h * 0.02, px - ph * 0.04, base - ph * 0.62, tw * 0.12, pa ? 9 : 8, lit, 3 * (pa ? H / 350 : U));
   if (pa) {

@@ -22,10 +22,23 @@ import kotlin.math.min
  */
 class CharacterLayouts(
     private val ctx: Context, private val c: Canvas, private val W: Float, private val H: Float, private val k: Float,
-    private val fg: Int, private val sub: Int, private val shadow: Int
+    private val fg: Int, private val sub: Int, private val shadow: Int,
+    /** 사용자가 글자색을 직접 골랐으면 카드 위 글자도 그 색 */
+    private val customFg: Boolean = false,
+    /** 사용자가 고른 카드 색 (0 = 날씨마다 바뀌는 기본 색) */
+    private val cardColor: Int = 0
 ) {
     companion object {
         const val POSTER = 0; const val CARD = 1; const val HEADLINE = 2
+
+        /** 사용자가 고른 한 가지 색으로 만든 카드: 위는 살짝 밝게, 글자는 바탕 밝기에 맞춤 */
+        fun cardColors(base: Int): IntArray {
+            val mix = { ch: Int -> ch + ((255 - ch) * 0.16f).toInt() }
+            val top = android.graphics.Color.rgb(mix(android.graphics.Color.red(base)), mix(android.graphics.Color.green(base)), mix(android.graphics.Color.blue(base)))
+            val light = android.graphics.Color.luminance(base) > 0.5f
+            return if (light) intArrayOf(top, base, 0xFF1E2128.toInt(), 0x991E2128.toInt())
+                   else intArrayOf(top, base, 0xFFFFFFFF.toInt(), 0xB3FFFFFF.toInt())
+        }
 
         /** 컬러 카드 색: [위, 아래, 글자, 보조 글자] — 하늘 종류 × 낮/밤 */
         fun cardColors(d: WeatherData): IntArray {
@@ -74,8 +87,10 @@ class CharacterLayouts(
         }
     }
 
+    private fun colorsOf(d: WeatherData) = if (cardColor != 0) cardColors(cardColor) else cardColors(d)
+
     private fun card(r: RectF, radius: Float, d: WeatherData, alpha: Int) {
-        val col = cardColors(d)
+        val col = colorsOf(d)
         c.drawRoundRect(r, radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(r.left, r.top, r.right * 0.4f, r.bottom, col[0], col[1], Shader.TileMode.CLAMP)
             this.alpha = alpha
@@ -98,10 +113,11 @@ class CharacterLayouts(
                 base(temp(d), ox + S / 2, oy + S - m, p(if (tempSize > 0) tempSize else S * 0.235f, BLACK, fg, Paint.Align.CENTER))
             }
             CARD -> {
-                val col = cardColors(d)
+                val col = colorsOf(d)
                 card(RectF(ox, oy, ox + S, oy + S), S * 0.14f, d, cardAlpha)
-                val ink = if (cardAlpha >= 110) col[2] else fg          // 카드를 아주 옅게 하면 배경 기준 글자색
-                val soft = if (cardAlpha >= 110) col[3] else sub
+                // 카드를 아주 옅게 하면 배경 기준 글자색, 직접 고른 글자색이 있으면 그 색
+                val ink = if (cardAlpha >= 110 && !customFg) col[2] else fg
+                val soft = if (cardAlpha >= 110 && !customFg) col[3] else sub
                 val shade = cardAlpha < 110
                 top("$md $wk", ox + m, oy + m, p(S * 0.07f, MED, soft, shade = shade))
                 val cs = S * 0.5f
@@ -141,10 +157,10 @@ class CharacterLayouts(
                 mid(wk, right, h * 0.74f, p(small(h * 0.15f), MED, sub, Paint.Align.RIGHT))
             }
             CARD -> { // 카드: [캐릭터][큰 기온 / 한마디] …… [날짜 / 요일]
-                val col = cardColors(d)
+                val col = colorsOf(d)
                 card(RectF(0f, 0f, W, h), min(h * 0.36f, 28f * k), d, cardAlpha)
-                val ink = if (cardAlpha >= 110) col[2] else fg
-                val soft = if (cardAlpha >= 110) col[3] else sub
+                val ink = if (cardAlpha >= 110 && !customFg) col[2] else fg
+                val soft = if (cardAlpha >= 110 && !customFg) col[3] else sub
                 val shade = cardAlpha < 110
                 val cs = h * 0.84f
                 character(d, h * 0.1f + cs / 2, h / 2, cs)

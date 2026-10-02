@@ -22,7 +22,9 @@ import kotlin.math.min
 class WeatherScene(
     private val ctx: Context, wDp: Float, hDp: Float,
     private val fg: Int, private val sub: Int = fg, private val accent: Int = fg,
-    private val shadow: Int = 0, private val quirky: Boolean = true
+    private val shadow: Int = 0, private val quirky: Boolean = true,
+    /** 사용자가 글자색을 직접 골랐는가 → 그림 위 글자도 그 색 */
+    private val customFg: Boolean = false
 ) {
     /** 바탕 없이 배경화면 위에 쓰는 글자(fg/sub 색)에만 옅은 그림자 */
     private fun Paint.shade(): Paint {
@@ -61,8 +63,6 @@ class WeatherScene(
     private val SERIF = Typeface.create(Typeface.SERIF, Typeface.BOLD)
     private val SANS = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
     private val SANS_M = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-    private val CREAM = 0xFFFBF1DC.toInt()
-    private val CREAM_SUB = 0xFFD9CFC0.toInt()
     private val BROWN = 0xFF5A3214.toInt()
     private val BROWN_SUB = 0xFF6A3E1A.toInt()
 
@@ -144,7 +144,7 @@ class WeatherScene(
     /** corner = 그림 모서리(짧은 변의 %, -1이면 기본 11), glassArt = 유리 캡슐 효과 */
     fun draw(
         design: Int, d: WeatherData, corner: Int = -1, glassArt: Boolean = false, artShadow: Boolean = false,
-        point: Int = WidgetStyle.DEFAULT_POINT, cardAlpha: Int = 255
+        point: Int = WidgetStyle.DEFAULT_POINT, cardAlpha: Int = 255, cardColor: Int = 0
     ) {
         val today = LocalDate.now()
         val md = "${today.monthValue}.${today.dayOfMonth}"
@@ -154,6 +154,9 @@ class WeatherScene(
         val kind = d.skyKind()
         val lit = night || kind == "rain"                      // 밤이거나 비 오는 날엔 텐트 불을 켬
         val darkText = !night && kind != "rain"                 // 밝은 낮 하늘엔 진한 글자
+        val art = ArtText(c, quirky, if (customFg) fg else null, sub, darkText)
+        fun ap(size: Float, tf: Typeface, col: Int, a: Paint.Align = Paint.Align.LEFT) =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = tf; color = col; textAlign = a }
 
         when (design) {
             1 -> { // LP 재킷: 그림이 위젯을 꽉 채우는 카드. 날짜는 하늘(왼쪽 위), 기온은 아래 어둠막 위에 크게
@@ -173,27 +176,23 @@ class WeatherScene(
                 })
                 c.restore()
                 if (glassArt) GlassArt.draw(c, card, rad)
-                val main = if (darkText) 0xFF23262E.toInt() else CREAM
-                val sub = if (darkText) 0xFF3E434D.toInt() else CREAM_SUB
                 val m = S * 0.08f
-                text(md, card.left + m, card.top + S * 0.065f, S * 0.22f, SERIF, main)
-                text(wk, card.left + m * 1.06f, card.top + S * 0.30f, S * 0.075f, SANS_M, sub)
-                val white = 0xFFFFFFFF.toInt()
-                val sh = 0x59000000
+                art.top(md, card.left + m, card.top + S * 0.065f, ap(S * 0.22f, SERIF, art.main))
+                art.top(wk, card.left + m * 1.06f, card.top + S * 0.30f, ap(S * 0.075f, SANS_M, art.sub))
+                // 아래 어둠막 위: 기본은 흰 글자, 직접 고른 색이면 그 색
+                val white = if (customFg) fg else 0xFFFFFFFF.toInt()
+                val low = ArtText(c, quirky, white, if (customFg) sub else 0xD9FFFFFF.toInt(), false)
                 val bottom = card.bottom - S * 0.07f
                 val msg = d.message()
                 if (msg != null) {
-                    val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.08f; typeface = SANS; color = white; setShadowLayer(S * 0.02f, 0f, S * 0.005f, sh) }
-                    c.drawText(msg, card.left + m, bottom, p)
+                    low.draw(msg, card.left + m, bottom, ap(S * 0.08f, SANS, low.main))
                 } else {
                     // 왼쪽 아래: 기온 (가장 크게)
-                    val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.23f; typeface = SERIF; color = white; setShadowLayer(S * 0.025f, 0f, S * 0.006f, sh) }
-                    c.drawText(d.tempText(), card.left + m, bottom, tp)
-                    // 오른쪽 아래: 캐릭터 / 날씨 / 최저·최고 (오른쪽 정렬)
+                    low.draw(d.tempText(), card.left + m, bottom, ap(S * 0.23f, SERIF, low.main))
+                    // 오른쪽 아래: 최저·최고 (오른쪽 정렬)
                     val right = card.right - m
-                    val rp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.072f; typeface = SANS_R; color = 0xD9FFFFFF.toInt(); textAlign = Paint.Align.RIGHT; setShadowLayer(S * 0.02f, 0f, S * 0.005f, sh) }
                     val range = d.rangeText().replace(" ", "")
-                    c.drawText(range, right, bottom, rp)
+                    low.draw(range, right, bottom, ap(S * 0.072f, SANS_R, low.sub, Paint.Align.RIGHT))
                     val ic = S * 0.2f
                     // 병맛 그림은 하늘에 이미 캐릭터가 있으니 여기 아이콘은 생략
                     if (!quirky) wIcon(d, right - ic / 2 + S * 0.02f, bottom - S * 0.1f - ic / 2, ic, white)
@@ -204,16 +203,15 @@ class WeatherScene(
                 val tent = Scenes.tent(lit, quirky)   // 낮엔 불 꺼진 텐트
                 val r = fitBottom(tent, box)
                 asset(tent, r)
-                text(wk, r.centerX(), r.top + r.height() * 0.36f, r.width() * 0.055f, SANS_M, BROWN_SUB, A.C)
-                text(md, r.centerX(), r.top + r.height() * 0.45f, r.width() * 0.19f, SERIF, BROWN, A.C)
+                // 텐트 천 위 글자: 기본은 갈색, 직접 고른 색이면 그 색
+                text(wk, r.centerX(), r.top + r.height() * 0.36f, r.width() * 0.055f, SANS_M, if (customFg) sub else BROWN_SUB, A.C)
+                text(md, r.centerX(), r.top + r.height() * 0.45f, r.width() * 0.19f, SERIF, if (customFg) fg else BROWN, A.C)
                 bottomRow(d)
             }
             3 -> { // 하늘 원: 재킷과 같은 규칙으로 날씨·시간에 따라 바뀜
                 asset(Scenes.circle(kind, night, quirky), sq)
-                val main = if (darkText) 0xFF23262E.toInt() else CREAM
-                val sub = if (darkText) 0xFF3E434D.toInt() else CREAM_SUB
-                text(md, sq.centerX(), sq.top + D * 0.07f, D * 0.27f, SERIF, main, A.C)
-                text(wk, sq.centerX(), sq.top + D * 0.35f, D * 0.07f, SANS_M, sub, A.C)
+                art.top(md, sq.centerX(), sq.top + D * 0.07f, ap(D * 0.27f, SERIF, art.main, Paint.Align.CENTER))
+                art.top(wk, sq.centerX(), sq.top + D * 0.35f, ap(D * 0.07f, SANS_M, art.sub, Paint.Align.CENTER))
                 bottomRow(d)
             }
             4 -> { // 큰 날짜 + 작은 텐트: 도형 없이 글자 중심 (레코드판과 경쟁하지 않음)
@@ -225,7 +223,7 @@ class WeatherScene(
                 bottomRow(d)
             }
             8, 9, 10 -> { // 캐릭터 포스터 / 컬러 카드 / 헤드라인
-                CharacterLayouts(ctx, c, W, H, k, fg, sub, shadow).draw2x2(design - 8, d, cardAlpha)
+                CharacterLayouts(ctx, c, W, H, k, fg, sub, shadow, customFg, cardColor).draw2x2(design - 8, d, cardAlpha)
             }
             else -> { // 기존 디자인(미니멀·다이얼·달력)은 정사각 칸 가운데에
                 val legacy = when (design) { 5 -> 1; 6 -> 3; else -> 5 }
