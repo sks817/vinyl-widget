@@ -214,6 +214,10 @@ class ConfigActivity : Activity() {
                 // 1×4 '심플'은 그림 없이 카드가 곧 디자인 → 바탕 없음(투명)이면 카드가 보이게 맞춰줌
                 // (유리: 0%, 검정·흰색 카드: 삼성 위젯과 같은 42%)
                 if (kind == Kind.WEATHER_WIDE && design == 3 && transparency >= 95) setTransparency(if (glass) 0 else 42)
+                // 캐릭터 카드는 카드가 곧 디자인 → 바탕 없음(투명)이면 카드가 보이게 (투명도로 카드 진하기 조절)
+                val cardDesign = (kind == Kind.WEATHER && design == WeatherWidget.CARD_2X2) ||
+                    (kind == Kind.WEATHER_WIDE && design == WeatherWidget.CARD_1X4)
+                if (cardDesign && transparency >= 95) setTransparency(0)
                 refreshAll(); renderPreview()
             }
             refreshers += { styleChip(chip, design == i + 1) }

@@ -14,8 +14,13 @@ import java.time.ZoneId
 /** 날씨·날짜 위젯. 그림을 누르면 기본 캘린더 앱, 아래 날씨 줄을 누르면 새로고침 */
 object WeatherWidget {
 
-    val DESIGN_NAMES = arrayOf("LP 재킷", "불 켜진 텐트", "하늘 원", "큰 날짜 + 텐트", "미니멀", "다이얼", "달력", "캐릭터")
-    val WIDE_DESIGN_NAMES = arrayOf("캠핑 파노라마", "텐트 + 날짜", "심플", "캐릭터")
+    val DESIGN_NAMES = arrayOf("LP 재킷", "불 켜진 텐트", "하늘 원", "큰 날짜 + 텐트", "미니멀", "다이얼", "달력",
+        "캐릭터 포스터", "캐릭터 카드", "캐릭터 헤드라인")
+    val WIDE_DESIGN_NAMES = arrayOf("캠핑 파노라마", "텐트 + 날짜", "심플", "캐릭터 포스터", "캐릭터 카드", "캐릭터 헤드라인")
+
+    /** 자체 카드를 그리는 디자인 (배경 투명도 = 카드 진하기) */
+    const val CARD_2X2 = 9
+    const val CARD_1X4 = 5
 
     fun renderAll(ctx: Context) {
         try {
@@ -43,11 +48,13 @@ object WeatherWidget {
 
     fun build(ctx: Context, style: WidgetStyle, d: WeatherData, wDp: Float = 170f, hDp: Float = 170f): RemoteViews {
         val rv = RemoteViews(ctx.packageName, R.layout.weather_canvas)
-        Palette.applyBackground(rv, style)
+        val design = style.design.coerceIn(1, DESIGN_NAMES.size)
+        val ownCard = design == CARD_2X2
+        Palette.applyBackground(rv, style, visible = !ownCard)
         val scene = WeatherScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style),
             Palette.shadow(ctx, style), style.quirky)
-        scene.draw(style.design.coerceIn(1, DESIGN_NAMES.size), d, style.corner, style.glassArt,
-            style.artShadow && Palette.bgHidden(style), style.point)
+        scene.draw(design, d, style.corner, style.glassArt,
+            style.artShadow && Palette.bgHidden(style), style.point, WidgetPrefs.alphaOf(style.transparency))
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
         rv.setOnClickPendingIntent(R.id.w_tap_refresh, refreshIntent(ctx))
@@ -61,7 +68,7 @@ object WeatherWidget {
         val simple = design == 3
         // 심플(검정/흰색): 슬라이더(배경 투명도)가 회색 카드에 적용되므로 위젯 기본 배경은 숨김.
         // 유리 배경이면 유리 카드가 곧 심플 카드
-        val ownCard = simple && !style.glass
+        val ownCard = (simple && !style.glass) || design == CARD_1X4
         Palette.applyBackground(rv, style, visible = !ownCard)
         val main = Palette.text(ctx, style)
         val scene = WideScene(ctx, wDp, hDp, main, Palette.sub(ctx, style), Palette.accent(ctx, style), Palette.shadow(ctx, style), style.quirky)

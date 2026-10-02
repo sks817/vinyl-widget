@@ -19,7 +19,7 @@ import kotlin.math.min
  *  1) 캠핑 파노라마: [큰 날짜·요일] (가운데 캠프 풍경) [캐릭터+기온 · 날씨·최저/최고]
  *  2) 텐트 + 날짜:   [텐트][큰 날짜·요일]  ……  [날씨 아이콘][기온 · 날씨·최저/최고]
  *  3) 심플:          [날씨 아이콘][기온·동네]  ……  [날짜·시계(시계는 TextClock)]
- *  4) 캐릭터:        [큰 캐릭터][한마디]  ……  [큰 기온]
+ *  4~6) 캐릭터 포스터 / 컬러 카드 / 헤드라인 → CharacterLayouts
  * 크기는 모두 위젯 높이(h) 비율이고, 작은 글자는 12dp 아래로 내려가지 않음
  */
 class WideScene(
@@ -137,22 +137,8 @@ class WideScene(
                     textMid(shown, x, h * 0.705f, sp)
                 }
             }
-            4 -> { // ---- 캐릭터 (병맛): [큰 캐릭터] [한마디(2줄까지)] [큰 기온] ----
-                val h = H
-                val black = Typeface.create("sans-serif-black", Typeface.NORMAL)
-                val cs = h * 0.92f
-                funIcon(d.iconFun(), h * 0.06f + cs / 2, h / 2, cs)
-                val x = h * 0.06f + cs + h * 0.14f
-                val right = W - h * 0.24f
-                val tp = paint(h * 0.46f, black, fg, Paint.Align.RIGHT)
-                val tw = if (msg == null) tp.measureText(d.tempText()) else 0f
-                if (msg == null) textMid(d.tempText(), right, h * 0.5f, tp)
-                val maxW = right - tw - h * 0.25f - x
-                // 캐릭터가 하는 한마디 (글자만, 넘치면 …으로 줄임)
-                val qp = paint(h * 0.2f, black, fg)
-                val lines = TextWrap.wrap(msg ?: Quips.of(d), qp, maxW, 2)
-                val lh = qp.textSize * 1.25f
-                lines.forEachIndexed { i, line -> textMid(line, x, h / 2 - (lines.size - 1) * lh / 2 + i * lh, qp) }
+            4, 5, 6 -> { // ---- 캐릭터 포스터 / 컬러 카드 / 헤드라인 ----
+                CharacterLayouts(ctx, c, W, H, k, fg, sub, shadow).draw1x4(design - 4, d, cardAlpha)
             }
             1 -> { // ---- 캠핑 파노라마 ----
                 val pad = 6f * k

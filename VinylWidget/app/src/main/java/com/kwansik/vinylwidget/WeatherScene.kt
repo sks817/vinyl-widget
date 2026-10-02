@@ -144,7 +144,7 @@ class WeatherScene(
     /** corner = 그림 모서리(짧은 변의 %, -1이면 기본 11), glassArt = 유리 캡슐 효과 */
     fun draw(
         design: Int, d: WeatherData, corner: Int = -1, glassArt: Boolean = false, artShadow: Boolean = false,
-        point: Int = WidgetStyle.DEFAULT_POINT
+        point: Int = WidgetStyle.DEFAULT_POINT, cardAlpha: Int = 255
     ) {
         val today = LocalDate.now()
         val md = "${today.monthValue}.${today.dayOfMonth}"
@@ -224,29 +224,8 @@ class WeatherScene(
                 asset(icon, fitBottom(icon, box))
                 bottomRow(d)
             }
-            8 -> { // 캐릭터 (병맛): 큰 캐릭터 + 한마디 + 큰 기온
-                val box = RectF(pad, pad, W - pad, H - pad)
-                val S = min(box.width(), box.height())
-                val black = Typeface.create("sans-serif-black", Typeface.NORMAL)
-                // 왼쪽 위: 날짜·요일 한 줄 (작게) → 한마디가 주인공
-                text("$md $wk", box.left + S * 0.05f, box.top + S * 0.06f, S * 0.085f, SANS_M, sub)
-                // 오른쪽: 큰 캐릭터 (병맛 테마를 꺼도 이 디자인은 캐릭터)
-                val cs = S * 0.5f
-                funIcon(d.iconFun(), box.right - cs / 2 + S * 0.02f, box.top + S * 0.06f + cs / 2, cs)
-                // 왼쪽: 캐릭터가 하는 한마디 (글자만, 띄어쓰기 단위로 2줄까지)
-                val qp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.105f; typeface = black; color = fg }.shade()
-                TextWrap.wrap(Quips.of(d), qp, S * 0.48f, 3).forEachIndexed { i, line ->
-                    c.drawText(line, box.left + S * 0.05f, box.top + S * 0.2f - qp.fontMetrics.ascent + i * S * 0.105f * 1.3f, qp)
-                }
-                // 아래: 기온(크게) + 날씨·최저/최고
-                val msg = d.message()
-                val by = box.bottom - S * 0.02f
-                if (msg != null) {
-                    text(msg, box.left + S * 0.04f, by - S * 0.12f, S * 0.08f, SANS, fg)
-                } else {
-                    val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.24f; typeface = black; color = fg }.shade()
-                    c.drawText(d.tempText(), box.left + S * 0.04f, by, tp)
-                }
+            8, 9, 10 -> { // 캐릭터 포스터 / 컬러 카드 / 헤드라인
+                CharacterLayouts(ctx, c, W, H, k, fg, sub, shadow).draw2x2(design - 8, d, cardAlpha)
             }
             else -> { // 기존 디자인(미니멀·다이얼·달력)은 정사각 칸 가운데에
                 val legacy = when (design) { 5 -> 1; 6 -> 3; else -> 5 }
