@@ -3,7 +3,9 @@ package com.kwansik.vinylwidget
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.Editable
@@ -11,7 +13,7 @@ import android.text.InputType
 import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
-import android.widget.Button
+import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
@@ -19,14 +21,15 @@ import android.widget.LinearLayout
 import android.widget.RemoteViews
 import android.widget.ScrollView
 import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 import kotlin.math.roundToInt
 
 /**
  * 위젯 꾸미기
- * - 날씨: 디자인 5종 선택
- * - 공통: 배경(자동 유리/검정/흰색), 배경 투명도, 버튼(또는 글자·아이콘) 색 (자동 = 배경화면 색)
- * 미리보기는 실제 위젯과 똑같은 코드로 그려서, 보이는 그대로 홈 화면에 적용됨
+ *  - 위: 실제 배경화면 위에 실제 위젯 코드로 그린 미리보기 (보이는 그대로 홈 화면에 적용)
+ *  - 아래: 시트 안의 카드 섹션. 날씨는 디자인·그림 효과(유리·그림자·모서리), 공통은 배경·투명도·색
+ *  - 화면 색은 배경화면에서 뽑은 시스템 색(Material You)을 따름
  */
 class ConfigActivity : Activity() {
 
@@ -39,6 +42,7 @@ class ConfigActivity : Activity() {
         0xFFFFD600.toInt(), 0xFF00C853.toInt(), 0xFF00B8D4.toInt(), 0xFF2962FF.toInt(), 0xFFD500F9.toInt()
     )
 
+    // ---- 꾸미기 값 ----
     private var widgetId = AppWidgetManager.INVALID_APPWIDGET_ID
     private var kind = Kind.MUSIC
     private var white = false
@@ -48,17 +52,18 @@ class ConfigActivity : Activity() {
     private var design = 1
     private var corner = -1
     private var glassArt = true
-    private val glassButtons = mutableListOf<Button>()
+    private var artShadow = true
 
     private val hsv = FloatArray(3)
     private var updatingUi = false
     private var lastLayoutId = 0
 
+    // ---- 화면 부품 ----
     private lateinit var holder: FrameLayout
-    private val designButtons = mutableListOf<Button>()
-    private val bgButtons = mutableListOf<Button>()
+    private val refreshers = mutableListOf<() -> Unit>()     // 선택 상태가 바뀔 때마다 다시 칠할 것들
     private val swatches = mutableListOf<View>()
-    private lateinit var transLabel: TextView
+    private lateinit var autoChip: TextView
+    private lateinit var transValue: TextView
     private lateinit var transBar: SeekBar
     private lateinit var hueBar: SeekBar
     private lateinit var satBar: SeekBar
@@ -66,10 +71,20 @@ class ConfigActivity : Activity() {
     private lateinit var satGradient: GradientDrawable
     private lateinit var valGradient: GradientDrawable
     private lateinit var hexInput: EditText
-    private lateinit var colorChip: View
-    private lateinit var autoColorBtn: Button
+    private lateinit var colorDot: View
+
+    // ---- 색 (시트는 항상 어두운 톤, 강조색은 배경화면 색) ----
+    private val sheetBg by lazy { (getColor(android.R.color.system_neutral1_900) and 0x00FFFFFF) or (0xF7 shl 24) }
+    private val cardBg by lazy { getColor(android.R.color.system_neutral1_800) }
+    private val trackBg by lazy { getColor(android.R.color.system_neutral1_700) }
+    private val onSurface by lazy { getColor(android.R.color.system_neutral1_50) }
+    private val onSurfaceVar by lazy { getColor(android.R.color.system_neutral2_200) }
+    private val outline by lazy { getColor(android.R.color.system_neutral2_500) }
+    private val accent by lazy { getColor(android.R.color.system_accent1_200) }
+    private val onAccent by lazy { getColor(android.R.color.system_accent1_800) }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
+    private fun dpf(v: Float) = v * resources.displayMetrics.density
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,35 +96,38 @@ class ConfigActivity : Activity() {
         else runCatching { Kind.valueOf(intent.getStringExtra(EXTRA_KIND) ?: "MUSIC") }.getOrDefault(Kind.MUSIC)
 
         val s = WidgetPrefs.style(this, kind, targetId())
-        white = s.white
-        glass = s.glass
-        transparency = s.transparency
-        color = s.fg
-        design = s.design
-        corner = s.corner
-        glassArt = s.glassArt
+        white = s.white; glass = s.glass; transparency = s.transparency; color = s.fg
+        design = s.design; corner = s.corner; glassArt = s.glassArt; artShadow = s.artShadow
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(buildPreview(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(220)))
-        root.addView(ScrollView(this).apply { addView(buildPanel()) },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        root.addView(buildPreview(), LinearLayout.LayoutParams(MATCH, dp(236)))
+        root.addView(buildSheet(), LinearLayout.LayoutParams(MATCH, 0, 1f))
         setContentView(root)
         root.padForSystemBars()
 
-        refreshSelectors()
+        refreshAll()
         if (color == Palette.AUTO) setAutoColor() else applyColor(color, fromHsv = false)
     }
 
     private fun targetId(): Int? = widgetId.takeIf { it != AppWidgetManager.INVALID_APPWIDGET_ID }
     private fun resultIntent() = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt)
+    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt, artShadow)
+    private fun isWeather() = kind == Kind.WEATHER || kind == Kind.WEATHER_WIDE
 
-    // ---------- 미리보기 (실제 위젯 코드로 그림) ----------
+    // ================= 미리보기 =================
     private fun buildPreview(): View {
         val area = FrameLayout(this)
         holder = FrameLayout(this)
         val (pw, ph) = KindConfig.previewSize(kind)
         area.addView(holder, FrameLayout.LayoutParams(dp(pw.toInt()), dp(ph.toInt()), Gravity.CENTER))
+        area.addView(TextView(this).apply {
+            text = "미리보기"
+            textSize = 11f
+            setTextColor(0xE6FFFFFF.toInt())
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            background = rounded(0x52000000, 12f)
+        }, FrameLayout.LayoutParams(WRAP, WRAP, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(10) })
         return area
     }
 
@@ -130,169 +148,169 @@ class ConfigActivity : Activity() {
         lastLayoutId = rv.layoutId
     }
 
-    // ---------- 설정 패널 ----------
-    private fun buildPanel(): View {
-        val panel = LinearLayout(this).apply {
+    // ================= 시트 =================
+    private fun buildSheet(): View {
+        val sheet = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(20), dp(20), dp(20))
             background = GradientDrawable().apply {
-                setColor(0xF21C1C1E.toInt())
-                val r = dp(20).toFloat()
+                setColor(sheetBg)
+                val r = dpf(28f)
                 cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
             }
         }
-        if (targetId() == null) {
-            panel.addView(text("※ 모든 ${KindConfig.name(kind)} 위젯에 한꺼번에 적용됩니다", 13f, 0xFFAAAAAA.toInt()))
+        // 손잡이
+        sheet.addView(View(this).apply { background = rounded(outline, 2f) },
+            LinearLayout.LayoutParams(dp(36), dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(10); bottomMargin = dp(6) })
+
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(6), dp(16), dp(16))
         }
+        body.addView(text("${KindConfig.name(kind)} 위젯 꾸미기", 20f, onSurface, bold = true))
+        body.addView(text(if (targetId() == null) "모든 ${KindConfig.name(kind)} 위젯에 한꺼번에 적용돼요"
+            else "이 위젯에만 적용돼요", 13f, onSurfaceVar).apply { setPadding(0, dp(2), 0, dp(14)) })
 
-        // 디자인 (날씨만)
-        val designs = KindConfig.designs(kind)
-        if (designs != null) {
-            panel.addView(text("디자인", 16f))
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            designs.forEachIndexed { i, name ->
-                val b = Button(this).apply {
-                    text = "${i + 1}. $name"
-                    setOnClickListener {
-                        design = i + 1
-                        // 1×4 '심플'은 그림 없이 카드가 곧 디자인 → 바탕 없음(투명)이면 카드가 보이게 맞춰줌
-                        // (유리: 0%, 검정·흰색 카드: 삼성 위젯과 같은 42%)
-                        if (kind == Kind.WEATHER_WIDE && design == 3 && transparency >= 95) {
-                            transparency = if (glass) 0 else 42; transBar.progress = transparency
-                            transLabel.text = "배경 투명도  $transparency%"
-                        }
-                        refreshSelectors(); renderPreview()
-                    }
-                }
-                designButtons += b
-                row.addView(b)
-            }
-            panel.addView(HorizontalScrollView(this).apply { addView(row) })
-            panel.addView(space(12))
-
-            // 그림 유리 효과 + 모서리 둥글기 (그림 테두리가 있는 디자인: 2×2 LP 재킷, 1×4 캠핑 파노라마)
-            panel.addView(text("그림 유리 효과", 16f))
-            panel.addView(text("풍경 그림이 유리 캡슐 안에 담긴 것처럼 반사광을 얹어요", 12f, 0xFFAAAAAA.toInt()))
-            val gRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            listOf("켜기" to true, "끄기" to false).forEach { (name, on) ->
-                val b = Button(this).apply {
-                    text = name
-                    setOnClickListener { glassArt = on; refreshSelectors(); renderPreview() }
-                }
-                glassButtons += b
-                gRow.addView(b, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            }
-            panel.addView(gRow)
-            panel.addView(space(8))
-            val cornerLabel = text("", 16f)
-            val shown = if (corner < 0) KindConfig.defaultCorner(kind) else corner
-            cornerLabel.text = "그림 모서리 둥글기  $shown%"
-            panel.addView(cornerLabel)
-            panel.addView(SeekBar(this).apply {
-                max = 50
-                progress = shown
-                setOnSeekBarChangeListener(listener { p ->
-                    corner = p
-                    cornerLabel.text = "그림 모서리 둥글기  $p%"
-                    renderPreview()
-                })
-            })
-            panel.addView(space(12))
+        if (isWeather()) {
+            body.addView(designCard())
+            body.addView(artCard())
         }
+        body.addView(backgroundCard())
+        body.addView(colorCard())
 
-        // 배경
-        panel.addView(text("배경", 16f))
-        panel.addView(text("없음: 배경화면 위에 그림·글자만 / 유리: 배경화면 색을 띤 반투명 카드", 12f, 0xFFAAAAAA.toInt()))
-        val bgRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        sheet.addView(ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = false },
+            LinearLayout.LayoutParams(MATCH, 0, 1f))
+        sheet.addView(bottomBar())
+        return sheet
+    }
+
+    // ---- 디자인 (날씨) ----
+    private fun designCard(): View {
+        val card = card("디자인", null)
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        KindConfig.designs(kind)!!.forEachIndexed { i, name ->
+            val chip = pill("$name")
+            chip.setOnClickListener {
+                design = i + 1
+                // 1×4 '심플'은 그림 없이 카드가 곧 디자인 → 바탕 없음(투명)이면 카드가 보이게 맞춰줌
+                // (유리: 0%, 검정·흰색 카드: 삼성 위젯과 같은 42%)
+                if (kind == Kind.WEATHER_WIDE && design == 3 && transparency >= 95) setTransparency(if (glass) 0 else 42)
+                refreshAll(); renderPreview()
+            }
+            refreshers += { styleChip(chip, design == i + 1) }
+            row.addView(chip, LinearLayout.LayoutParams(WRAP, dp(38)).apply { marginEnd = dp(8) })
+        }
+        card.addView(HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(row)
+        })
+        return card
+    }
+
+    // ---- 그림 효과 (날씨): 유리 캡슐 / 그림자 / 모서리 ----
+    private fun artCard(): View {
+        val card = card("그림 효과", "LP 재킷 · 캠핑 파노라마 디자인에 적용돼요")
+        val glassRow = toggleRow("유리 캡슐", "그림이 유리관 안에 담긴 것처럼 반사광을 얹어요", { glassArt }) { glassArt = it }
+        val shadowRow = toggleRow("그림자", "배경 '없음'일 때 그림 아래에 은은한 그림자", { artShadow }) { artShadow = it }
+        card.addView(glassRow)
+        card.addView(divider())
+        card.addView(shadowRow)
+        card.addView(divider())
+        val shown = if (corner < 0) KindConfig.defaultCorner(kind) else corner
+        val cornerRow = slider("모서리 둥글기", 50, shown, { "$it%" }) { corner = it; renderPreview() }
+        card.addView(cornerRow)
+        refreshers += {
+            val artDesign = design == 1
+            dim(glassRow, artDesign); dim(cornerRow, artDesign)
+            dim(shadowRow, artDesign && transparency >= 100)
+        }
+        return card
+    }
+
+    // ---- 배경 ----
+    private fun backgroundCard(): View {
+        val card = card("배경", "없음: 배경화면 위에 그대로 · 유리: 배경화면 색을 띤 반투명 카드")
         // (이름, 유리, 흰색, 바탕 없음)
-        listOf(
-            listOf("없음", true, false, true), listOf("유리", true, false, false),
-            listOf("검정", false, false, false), listOf("흰색", false, true, false)
-        ).forEach { (name, isGlass, isWhite, none) ->
-            val b = Button(this).apply {
-                text = name as String
-                setOnClickListener {
-                    glass = isGlass as Boolean; white = isWhite as Boolean
-                    transparency = if (none as Boolean) 100 else if (transparency >= 100) 0 else transparency
-                    transBar.progress = transparency
-                    transLabel.text = "배경 투명도  $transparency%"
-                    refreshSelectors(); renderPreview()
-                }
-            }
-            bgButtons += b
-            bgRow.addView(b, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        }
-        panel.addView(bgRow)
+        data class Bg(val name: String, val glass: Boolean, val white: Boolean, val none: Boolean)
+        val options = listOf(Bg("없음", true, false, true), Bg("유리", true, false, false),
+            Bg("검정", false, false, false), Bg("흰색", false, true, false))
+        card.addView(segmented(options.map { it.name },
+            selected = { if (transparency >= 100) 0 else if (glass) 1 else if (white) 3 else 2 }) { i ->
+            val o = options[i]
+            glass = o.glass; white = o.white
+            setTransparency(if (o.none) 100 else if (transparency >= 100) 0 else transparency)
+            refreshAll(); renderPreview()
+        })
+        card.addView(space(14))
+        card.addView(slider("배경 투명도", 100, transparency, { "$it%" }, keep = { bar, value -> transBar = bar; transValue = value }) {
+            transparency = it; refreshAll(); renderPreview()
+        })
+        return card
+    }
 
-        // 배경 투명도
-        panel.addView(space(8))
-        transLabel = text("", 16f)
-        panel.addView(transLabel)
-        transBar = SeekBar(this).apply {
-            max = 100
-            progress = transparency
-            setOnSeekBarChangeListener(listener { p ->
-                transparency = p
-                transLabel.text = "배경 투명도  $transparency%"
-                refreshSelectors()
-                renderPreview()
-            })
-        }
-        panel.addView(transBar)
-        transLabel.text = "배경 투명도  $transparency%"
+    private fun setTransparency(v: Int) {
+        transparency = v
+        if (::transBar.isInitialized) { transBar.progress = v; transValue.text = "$v%" }
+    }
 
-        // 색 - 프리셋
-        panel.addView(space(16))
-        panel.addView(text(KindConfig.colorTitle(kind), 16f))
-        KindConfig.colorNote(kind)?.let { panel.addView(text(it, 12f, 0xFFAAAAAA.toInt())) }
-        autoColorBtn = Button(this).apply {
-            text = "자동 (배경에 맞춤)"
-            setOnClickListener { hexInput.clearFocus(); setAutoColor() }
-        }
-        panel.addView(autoColorBtn)
+    // ---- 색 ----
+    private fun colorCard(): View {
+        val card = card(KindConfig.colorTitle(kind), KindConfig.colorNote(kind))
+        autoChip = pill("✦  자동 · 배경에 맞춤").apply { setOnClickListener { hexInput.clearFocus(); setAutoColor() } }
+        card.addView(autoChip, LinearLayout.LayoutParams(WRAP, dp(38)).apply { bottomMargin = dp(10) })
+
         for (rowIdx in 0 until 2) {
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             for (i in 0 until 5) {
                 val c = presets[rowIdx * 5 + i]
                 val sw = View(this).apply {
                     tag = c
-                    background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(c)
-                    }
+                    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(c) }
                     setOnClickListener { hexInput.clearFocus(); applyColor(c, fromHsv = false) }
                 }
                 swatches += sw
-                row.addView(sw, LinearLayout.LayoutParams(dp(40), dp(40)).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
+                row.addView(sw, LinearLayout.LayoutParams(0, dp(40), 1f).apply { setMargins(dp(5), dp(5), dp(5), dp(5)) })
             }
-            panel.addView(row)
+            card.addView(row)
         }
 
-        // 색 - 직접 선택
-        panel.addView(space(12))
-        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        header.addView(text("직접 선택", 16f), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        colorChip = View(this)
-        header.addView(colorChip, LinearLayout.LayoutParams(dp(28), dp(28)))
-        panel.addView(header)
+        // 직접 고르기 (접었다 펴기)
+        val picker = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(12), 0, dp(4))
+        }
+        val arrow = text("›", 20f, onSurfaceVar)
+        header.addView(text("직접 고르기", 15f, onSurface, bold = true), LinearLayout.LayoutParams(0, WRAP, 1f))
+        colorDot = View(this)
+        header.addView(colorDot, LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(10) })
+        header.addView(arrow)
+        header.setOnClickListener {
+            val open = picker.visibility != View.VISIBLE
+            picker.visibility = if (open) View.VISIBLE else View.GONE
+            arrow.animate().rotation(if (open) 90f else 0f).setDuration(180).start()
+        }
+        card.addView(header)
 
-        panel.addView(text("색상", 13f, 0xFFAAAAAA.toInt()))
+        picker.addView(caption("색상"))
         hueBar = gradientBar(360, GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(
             Color.RED, Color.YELLOW, Color.GREEN, Color.CYAN, Color.BLUE, Color.MAGENTA, Color.RED)))
-        panel.addView(hueBar)
-        panel.addView(text("채도", 13f, 0xFFAAAAAA.toInt()))
+        picker.addView(hueBar)
+        picker.addView(caption("채도"))
         satGradient = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.WHITE, Color.RED))
         satBar = gradientBar(100, satGradient)
-        panel.addView(satBar)
-        panel.addView(text("밝기", 13f, 0xFFAAAAAA.toInt()))
+        picker.addView(satBar)
+        picker.addView(caption("밝기"))
         valGradient = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.BLACK, Color.RED))
         valBar = gradientBar(100, valGradient)
-        panel.addView(valBar)
+        picker.addView(valBar)
 
         hexInput = EditText(this).apply {
             hint = "#FFFFFF"
-            setTextColor(Color.WHITE)
-            setHintTextColor(0xFF777777.toInt())
+            textSize = 15f
+            setTextColor(onSurface)
+            setHintTextColor(outline)
+            background = rounded(trackBg, 14f)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
             isSingleLine = true
             addTextChangedListener(object : TextWatcher {
@@ -307,52 +325,46 @@ class ConfigActivity : Activity() {
                 }
             })
         }
-        panel.addView(hexInput)
-
-        // 저장/취소
-        panel.addView(space(16))
-        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        actions.addView(Button(this).apply { text = "취소"; setOnClickListener { finish() } },
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        actions.addView(Button(this).apply { text = "저장"; setOnClickListener { save() } },
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        panel.addView(actions)
-        return panel
+        picker.addView(hexInput, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
+        card.addView(picker)
+        return card
     }
 
-    private fun refreshSelectors() {
-        designButtons.forEachIndexed { i, b -> b.alpha = if (i + 1 == design) 1f else 0.45f }
-        glassButtons.forEachIndexed { i, b -> b.alpha = if ((i == 0) == glassArt) 1f else 0.45f }
-        val bgIndex = if (transparency >= 100) 0 else if (glass) 1 else if (white) 3 else 2
-        bgButtons.forEachIndexed { i, b -> b.alpha = if (i == bgIndex) 1f else 0.45f }
+    // ---- 하단 고정 버튼 ----
+    private fun bottomBar(): View {
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(16), dp(10), dp(16), dp(14))
+            setBackgroundColor(sheetBg)
+        }
+        val cancel = TextView(this).apply {
+            text = "취소"; textSize = 16f; gravity = Gravity.CENTER
+            setTextColor(onSurface)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            background = rounded(Color.TRANSPARENT, 26f, outline, 1)
+            setOnClickListener { finish() }
+        }
+        val save = TextView(this).apply {
+            text = "저장"; textSize = 16f; gravity = Gravity.CENTER
+            setTextColor(onAccent)
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            background = rounded(accent, 26f)
+            setOnClickListener { save() }
+        }
+        bar.addView(cancel, LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginEnd = dp(10) })
+        bar.addView(save, LinearLayout.LayoutParams(0, dp(52), 2f))
+        return bar
     }
 
-    private fun gradientBar(maxValue: Int, drawable: GradientDrawable) = SeekBar(this).apply {
-        max = maxValue
-        drawable.cornerRadius = dp(6).toFloat()
-        progressDrawable = drawable
-        minHeight = dp(12)
-        maxHeight = dp(12)
-        setPadding(dp(16), dp(12), dp(16), dp(12))
-        setOnSeekBarChangeListener(listener { onHsvChanged() })
-    }
-
-    // ---------- 색 처리 ----------
-    private fun onHsvChanged() {
-        if (updatingUi) return
-        hsv[0] = hueBar.progress.toFloat()
-        hsv[1] = satBar.progress / 100f
-        hsv[2] = valBar.progress / 100f
-        hexInput.clearFocus()
-        applyColor(Color.HSVToColor(hsv), fromHsv = true)
-    }
+    // ================= 상태 =================
+    private fun refreshAll() = refreshers.forEach { it() }
 
     /** 글자·버튼 색 '자동': 실제 색은 배경에 따라 정해지므로 표시만 지금 색으로 */
     private fun setAutoColor() {
         applyColor(Palette.accent(this, currentStyle().copy(fg = Palette.AUTO)), fromHsv = false)
         color = Palette.AUTO
-        autoColorBtn.alpha = 1f
-        swatches.forEach { (it.background as GradientDrawable).setStroke(0, Color.WHITE) }
+        styleChip(autoChip, true)
+        swatches.forEach { styleSwatch(it, false) }
         updatingUi = true
         hexInput.setText("")
         updatingUi = false
@@ -361,7 +373,7 @@ class ConfigActivity : Activity() {
 
     private fun applyColor(c: Int, fromHsv: Boolean) {
         color = c or 0xFF000000.toInt()
-        if (::autoColorBtn.isInitialized) autoColorBtn.alpha = 0.45f
+        if (::autoChip.isInitialized) styleChip(autoChip, false)
         if (!fromHsv) Color.colorToHSV(color, hsv)
         updatingUi = true
         hueBar.progress = hsv[0].roundToInt()
@@ -373,16 +385,20 @@ class ConfigActivity : Activity() {
         satGradient.colors = intArrayOf(Color.HSVToColor(floatArrayOf(hsv[0], 0f, hsv[2])),
             Color.HSVToColor(floatArrayOf(hsv[0], 1f, hsv[2])))
         valGradient.colors = intArrayOf(Color.BLACK, Color.HSVToColor(floatArrayOf(hsv[0], hsv[1], 1f)))
-        colorChip.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(color)
-            setStroke(dp(2), Color.WHITE)
+        colorDot.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL; setColor(color); setStroke(dp(2), onSurface)
         }
-        swatches.forEach { sw ->
-            val sc = sw.tag as Int
-            (sw.background as GradientDrawable).setStroke(if (sc == color) dp(3) else 0, Color.WHITE)
-        }
+        swatches.forEach { styleSwatch(it, it.tag as Int == color) }
         renderPreview()
+    }
+
+    private fun onHsvChanged() {
+        if (updatingUi) return
+        hsv[0] = hueBar.progress.toFloat()
+        hsv[1] = satBar.progress / 100f
+        hsv[2] = valBar.progress / 100f
+        hexInput.clearFocus()
+        applyColor(Color.HSVToColor(hsv), fromHsv = true)
     }
 
     private fun save() {
@@ -392,18 +408,149 @@ class ConfigActivity : Activity() {
         finish()
     }
 
-    // ---------- 작은 도우미 ----------
-    private fun text(s: String, size: Float, c: Int = Color.WHITE) = TextView(this).apply {
-        text = s
-        textSize = size
-        setTextColor(c)
-        setPadding(0, dp(4), 0, dp(4))
+    // ================= 부품 =================
+    private val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
+    private val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
+
+    private fun rounded(fill: Int, radiusDp: Float, stroke: Int = 0, strokeDp: Int = 0) = GradientDrawable().apply {
+        setColor(fill); cornerRadius = dpf(radiusDp)
+        if (strokeDp > 0) setStroke(dp(strokeDp), stroke)
     }
+
+    private fun text(s: String, size: Float, c: Int, bold: Boolean = false) = TextView(this).apply {
+        text = s; textSize = size; setTextColor(c)
+        typeface = if (bold) Typeface.create("sans-serif", Typeface.BOLD) else Typeface.create("sans-serif", Typeface.NORMAL)
+    }
+
+    private fun caption(s: String) = text(s, 12f, onSurfaceVar).apply { setPadding(0, dp(10), 0, dp(2)) }
 
     private fun space(h: Int) = View(this).apply { minimumHeight = dp(h) }
 
+    private fun divider() = View(this).apply { setBackgroundColor((onSurface and 0x00FFFFFF) or (0x14 shl 24)) }
+        .also { it.layoutParams = LinearLayout.LayoutParams(MATCH, dp(1)).apply { topMargin = dp(4); bottomMargin = dp(4) } }
+
+    /** 섹션 카드: 제목 + 설명 + 내용 */
+    private fun card(title: String, subtitle: String?): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        background = rounded(cardBg, 22f)
+        setPadding(dp(18), dp(16), dp(18), dp(16))
+        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { bottomMargin = dp(12) }
+        addView(text(title, 16f, onSurface, bold = true))
+        subtitle?.let { addView(text(it, 12.5f, onSurfaceVar).apply { setPadding(0, dp(3), 0, 0) }) }
+        addView(space(12))
+    }
+
+    /** 알약 모양 선택 칩 */
+    private fun pill(label: String) = TextView(this).apply {
+        text = label; textSize = 14f; gravity = Gravity.CENTER
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        setPadding(dp(16), 0, dp(16), 0)
+    }
+
+    private fun styleChip(v: TextView, on: Boolean) {
+        v.background = if (on) rounded(accent, 19f) else rounded(Color.TRANSPARENT, 19f, outline, 1)
+        v.setTextColor(if (on) onAccent else onSurface)
+    }
+
+    private fun styleSwatch(v: View, on: Boolean) {
+        (v.background as GradientDrawable).setStroke(if (on) dp(3) else dp(1), if (on) accent else (outline and 0x00FFFFFF) or (0x80 shl 24))
+        v.animate().scaleX(if (on) 1.08f else 1f).scaleY(if (on) 1.08f else 1f).setDuration(120).start()
+    }
+
+    /** 세그먼트 버튼: 하나만 고르는 옵션 */
+    private fun segmented(labels: List<String>, selected: () -> Int, onPick: (Int) -> Unit): View {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = rounded(trackBg, 22f)
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+        }
+        val segs = labels.mapIndexed { i, l ->
+            TextView(this).apply {
+                text = l; textSize = 14f; gravity = Gravity.CENTER
+                typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                setOnClickListener { onPick(i) }
+            }.also { box.addView(it, LinearLayout.LayoutParams(0, dp(38), 1f)) }
+        }
+        refreshers += {
+            val sel = selected()
+            segs.forEachIndexed { i, t ->
+                t.background = if (i == sel) rounded(accent, 18f) else null
+                t.setTextColor(if (i == sel) onAccent else onSurfaceVar)
+            }
+        }
+        return box
+    }
+
+    /** 켜기/끄기 줄: 제목·설명 + 스위치 (줄 어디를 눌러도 바뀜) */
+    private fun toggleRow(title: String, desc: String, get: () -> Boolean, set: (Boolean) -> Unit): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8), 0, dp(8))
+        }
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        col.addView(text(title, 15f, onSurface, bold = true))
+        col.addView(text(desc, 12.5f, onSurfaceVar).apply { setPadding(0, dp(2), dp(12), 0) })
+        row.addView(col, LinearLayout.LayoutParams(0, WRAP, 1f))
+        val sw = Switch(this).apply {
+            isChecked = get()
+            val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
+            thumbTintList = ColorStateList(states, intArrayOf(onAccent, outline))
+            trackTintList = ColorStateList(states, intArrayOf(accent, trackBg))
+            setOnCheckedChangeListener { _, on -> set(on); refreshAll(); renderPreview() }
+        }
+        row.addView(sw)
+        row.setOnClickListener { if (sw.isEnabled) sw.toggle() }
+        return row
+    }
+
+    /** 슬라이더 줄: 이름(왼쪽) + 값(오른쪽, 강조색) + 막대 */
+    private fun slider(
+        label: String, max: Int, value: Int, format: (Int) -> String,
+        keep: ((SeekBar, TextView) -> Unit)? = null, onChange: (Int) -> Unit
+    ): View {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(6), 0, 0) }
+        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        head.addView(text(label, 15f, onSurface, bold = true), LinearLayout.LayoutParams(0, WRAP, 1f))
+        val v = text(format(value), 15f, accent, bold = true)
+        head.addView(v)
+        col.addView(head)
+        val bar = SeekBar(this).apply {
+            this.max = max
+            progress = value
+            progressTintList = ColorStateList.valueOf(accent)
+            progressBackgroundTintList = ColorStateList.valueOf(trackBg)
+            thumbTintList = ColorStateList.valueOf(accent)
+            setPadding(dp(4), dp(10), dp(4), dp(6))
+            setOnSeekBarChangeListener(listener { p -> v.text = format(p); onChange(p) })
+        }
+        col.addView(bar)
+        keep?.invoke(bar, v)
+        return col
+    }
+
+    /** 지금 디자인·배경에서 효과가 없는 설정은 흐리게 + 못 누르게 */
+    private fun dim(v: View, enabled: Boolean) {
+        v.alpha = if (enabled) 1f else 0.38f
+        fun walk(x: View) {
+            x.isEnabled = enabled
+            if (x is ViewGroup) for (i in 0 until x.childCount) walk(x.getChildAt(i))
+        }
+        walk(v)
+    }
+
+    private fun gradientBar(maxValue: Int, drawable: GradientDrawable) = SeekBar(this).apply {
+        max = maxValue
+        drawable.cornerRadius = dpf(6f)
+        progressDrawable = drawable
+        thumbTintList = ColorStateList.valueOf(onSurface)
+        minHeight = dp(12)
+        maxHeight = dp(12)
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+        setOnSeekBarChangeListener(listener { onHsvChanged() })
+    }
+
     private fun listener(onChange: (Int) -> Unit) = object : SeekBar.OnSeekBarChangeListener {
-        override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) { onChange(p) }
+        override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) { if (fromUser) onChange(p) }
         override fun onStartTrackingTouch(sb: SeekBar?) {}
         override fun onStopTrackingTouch(sb: SeekBar?) {}
     }

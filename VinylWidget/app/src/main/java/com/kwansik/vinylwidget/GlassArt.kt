@@ -17,6 +17,22 @@ import kotlin.math.min
  */
 object GlassArt {
 
+    /**
+     * 그림 아래 그림자: 넓게 퍼지는 옅은 그림자 + 바로 아래 짧은 그림자 두 겹.
+     * 바탕 없이 배경화면 위에 떠 있을 때 그림이 '놓인 물건'처럼 보이게 함. 그림보다 먼저 그림
+     */
+    fun shadow(c: Canvas, r: RectF, radius: Float) {
+        val s = min(r.width(), r.height())
+        val rad = radius.coerceIn(0f, s / 2)
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        p.color = 0x42000000
+        p.maskFilter = BlurMaskFilter(s * 0.07f, BlurMaskFilter.Blur.NORMAL)
+        c.drawRoundRect(RectF(r.left + s * 0.03f, r.top + s * 0.06f, r.right - s * 0.03f, r.bottom + s * 0.035f), rad, rad, p)
+        p.color = 0x33000000
+        p.maskFilter = BlurMaskFilter(s * 0.018f, BlurMaskFilter.Blur.NORMAL)
+        c.drawRoundRect(RectF(r.left + s * 0.01f, r.top + s * 0.02f, r.right - s * 0.01f, r.bottom + s * 0.012f), rad, rad, p)
+    }
+
     fun draw(c: Canvas, r: RectF, radius: Float) {
         val w = r.width(); val h = r.height(); val s = min(w, h)
         val rad = radius.coerceIn(0f, s / 2)

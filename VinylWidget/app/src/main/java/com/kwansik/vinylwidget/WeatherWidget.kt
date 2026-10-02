@@ -46,7 +46,8 @@ object WeatherWidget {
         Palette.applyBackground(rv, style)
         val scene = WeatherScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style),
             Palette.shadow(ctx, style))
-        scene.draw(style.design.coerceIn(1, DESIGN_NAMES.size), d, style.corner, style.glassArt)
+        scene.draw(style.design.coerceIn(1, DESIGN_NAMES.size), d, style.corner, style.glassArt,
+            style.artShadow && Palette.bgHidden(style))
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
         rv.setOnClickPendingIntent(R.id.w_tap_refresh, refreshIntent(ctx))
@@ -65,7 +66,7 @@ object WeatherWidget {
         val main = Palette.text(ctx, style)
         val scene = WideScene(ctx, wDp, hDp, main, Palette.sub(ctx, style), Palette.accent(ctx, style), Palette.shadow(ctx, style))
         scene.draw(design, d, if (ownCard) WidgetPrefs.alphaOf(style.transparency) else 0, style.white,
-            style.corner, style.glassArt)
+            style.corner, style.glassArt, style.artShadow && Palette.bgHidden(style))
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
         rv.setOnClickPendingIntent(R.id.w_tap_refresh, refreshIntent(ctx))

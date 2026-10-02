@@ -120,7 +120,7 @@ class WeatherScene(
     }
 
     /** corner = 그림 모서리(짧은 변의 %, -1이면 기본 11), glassArt = 유리 캡슐 효과 */
-    fun draw(design: Int, d: WeatherData, corner: Int = -1, glassArt: Boolean = false) {
+    fun draw(design: Int, d: WeatherData, corner: Int = -1, glassArt: Boolean = false, artShadow: Boolean = false) {
         val today = LocalDate.now()
         val md = "${today.monthValue}.${today.dayOfMonth}"
         val wk = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.KOREAN)
@@ -134,6 +134,7 @@ class WeatherScene(
             1 -> { // LP 재킷: 날씨·시간에 따라 그림이 바뀜 (맑음·구름·비·눈 × 낮·밤)
                 c.save()
                 val rad = D * (if (corner < 0) 11 else corner) / 100f
+                if (artShadow) GlassArt.shadow(c, sq, rad)
                 c.clipPath(android.graphics.Path().apply { addRoundRect(sq, rad, rad, android.graphics.Path.Direction.CW) })
                 asset(Scenes.jacket(kind, night), sq)
                 c.restore()
