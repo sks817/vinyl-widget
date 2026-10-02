@@ -5,7 +5,7 @@
     android:layout_width="match_parent" android:layout_height="match_parent">
     <ImageView android:id="@+id/bg_image"
         android:layout_width="match_parent" android:layout_height="match_parent"
-        android:src="@drawable/widget_bg" android:scaleType="fitXY" />
+        android:src="@drawable/widget_bg_glass" android:scaleType="fitXY" />
     <LinearLayout
         android:layout_width="match_parent" android:layout_height="match_parent"
         android:orientation="horizontal" android:gravity="center_vertical"
@@ -36,24 +36,24 @@
             <TextView android:id="@+id/m_title"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textSize="15sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"
-                android:textColor="#FFFFFFFF" android:text="음악을 재생해 주세요" />
+                android:textColor="@color/glass_text" android:text="음악을 재생해 주세요" />
             <TextView android:id="@+id/m_artist"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:textSize="12sp" android:maxLines="1" android:ellipsize="end"
-                android:textColor="#B3FFFFFF" />
+                android:textColor="@color/glass_sub" />
         </LinearLayout>
         <ImageButton android:id="@+id/btn_prev"
             android:layout_width="38dp" android:layout_height="44dp"
-            android:src="@drawable/ic_prev" android:scaleType="centerInside"
+            android:src="@drawable/ic_prev_auto" android:scaleType="centerInside"
             android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/prev" />
         <ImageButton android:id="@+id/btn_play"
             android:layout_width="38dp" android:layout_height="44dp"
-            android:src="@drawable/ic_play" android:scaleType="centerInside"
+            android:src="@drawable/ic_play_auto" android:scaleType="centerInside"
             android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/play" />
         <ImageButton android:id="@+id/btn_next"
             android:layout_width="38dp" android:layout_height="44dp"
-            android:src="@drawable/ic_next" android:scaleType="centerInside"
+            android:src="@drawable/ic_next_auto" android:scaleType="centerInside"
             android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/next" />
     </LinearLayout>
 </FrameLayout>

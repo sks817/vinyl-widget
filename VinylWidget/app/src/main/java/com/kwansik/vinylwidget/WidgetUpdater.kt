@@ -53,7 +53,7 @@ object WidgetUpdater {
 
     private fun renderInternal(ctx: Context, np: NowPlaying?, force: Boolean) {
         val access = MediaHelper.hasAccess(ctx)
-        val key = "${np?.trackKey}|${np?.playing}|$access"
+        val key = "${np?.trackKey}|${np?.playing}|$access|${Palette.signature(ctx)}"
         if (!force && key == lastKey) return
 
         val mgr = AppWidgetManager.getInstance(ctx)
@@ -69,7 +69,7 @@ object WidgetUpdater {
             else -> null
         }
         val playing = np?.playing == true
-        val label = LabelRenderer.draw(np?.art)
+        val label = LabelRenderer.draw(np?.art, Palette.label(ctx))
         for (id in ids) {
             val style = WidgetPrefs.style(ctx, Kind.MUSIC, id)
             val (w, h) = WidgetGeom.sizeDp(mgr, id)

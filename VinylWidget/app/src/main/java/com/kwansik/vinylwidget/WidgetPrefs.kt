@@ -8,19 +8,20 @@ import android.widget.RemoteViews
 
 enum class Kind { MUSIC, WEATHER, MUSIC_WIDE, WEATHER_WIDE }
 
-/** 위젯 꾸미기 값. design은 날씨 위젯에서만 사용(1~5) */
-data class WidgetStyle(val white: Boolean, val transparency: Int, val fg: Int, val design: Int)
+/**
+ * 위젯 꾸미기 값. design은 날씨 위젯에서만 사용.
+ * glass = 배경 '자동(유리)', fg = Palette.AUTO면 글자·버튼 색 자동
+ */
+data class WidgetStyle(
+    val white: Boolean, val transparency: Int, val fg: Int, val design: Int, val glass: Boolean = true
+)
 
 /** 위젯 종류별 고정 값 (꾸미기 화면이 이걸 보고 동작) */
 object KindConfig {
     private fun isMusic(k: Kind) = k == Kind.MUSIC || k == Kind.MUSIC_WIDE
 
-    fun default(k: Kind) = when (k) {
-        Kind.MUSIC -> WidgetStyle(white = false, transparency = 15, fg = Color.WHITE, design = 1)
-        Kind.MUSIC_WIDE -> WidgetStyle(white = false, transparency = 25, fg = Color.WHITE, design = 1)
-        Kind.WEATHER -> WidgetStyle(white = false, transparency = 100, fg = 0xFF161616.toInt(), design = 1)
-        Kind.WEATHER_WIDE -> WidgetStyle(white = false, transparency = 100, fg = 0xFF161616.toInt(), design = 1)
-    }
+    /** 기본값: 어떤 배경화면에도 어울리도록 유리 카드 + 자동 색 */
+    fun default(k: Kind) = WidgetStyle(white = false, transparency = 0, fg = Palette.AUTO, design = 1, glass = true)
 
     fun provider(k: Kind): Class<*> = when (k) {
         Kind.MUSIC -> SpinWidgetProvider::class.java
@@ -45,11 +46,9 @@ object KindConfig {
     fun previewSize(k: Kind): Pair<Float, Float> =
         if (k == Kind.MUSIC_WIDE || k == Kind.WEATHER_WIDE) 330f to 84f else 170f to 170f
 
-    private var label: android.graphics.Bitmap? = null
-
     fun preview(ctx: Context, k: Kind, style: WidgetStyle): RemoteViews {
         val (w, h) = previewSize(k)
-        val l = label ?: LabelRenderer.draw(null).also { label = it }
+        val l = LabelRenderer.draw(null, Palette.label(ctx))
         return when (k) {
             Kind.MUSIC -> MusicWidget.build(ctx, style, l, playing = false, status = null)
             Kind.MUSIC_WIDE -> MusicWidget.buildWide(ctx, style, l, false, "곡 제목", "가수 이름", null, w, h)
@@ -89,16 +88,18 @@ object WidgetPrefs {
         val d = KindConfig.default(k)
         val base = WidgetStyle(
             p.getBoolean(dk(k, "w"), d.white),
-            p.getInt(dk(k, "t"), d.transparency),
-            p.getInt(dk(k, "c"), d.fg),
-            p.getInt(dk(k, "d"), d.design)
+            p.getInt(dk(k, "a"), d.transparency),
+            p.getInt(dk(k, "f"), d.fg),
+            p.getInt(dk(k, "d"), d.design),
+            p.getBoolean(dk(k, "g"), d.glass)
         )
         if (id == null) return base
         return WidgetStyle(
             p.getBoolean("w_$id", base.white),
-            p.getInt("t_$id", base.transparency),
-            p.getInt("c_$id", base.fg),
-            p.getInt("d_$id", base.design)
+            p.getInt("a_$id", base.transparency),
+            p.getInt("f_$id", base.fg),
+            p.getInt("d_$id", base.design),
+            p.getBoolean("g_$id", base.glass)
         )
     }
 
@@ -106,21 +107,25 @@ object WidgetPrefs {
     fun save(ctx: Context, k: Kind, id: Int?, s: WidgetStyle) {
         val e = sp(ctx).edit()
         if (id != null) {
-            e.putBoolean("w_$id", s.white).putInt("t_$id", s.transparency)
-                .putInt("c_$id", s.fg).putInt("d_$id", s.design)
+            e.putBoolean("w_$id", s.white).putInt("a_$id", s.transparency)
+                .putInt("f_$id", s.fg).putInt("d_$id", s.design).putBoolean("g_$id", s.glass)
         } else {
-            e.putBoolean(dk(k, "w"), s.white).putInt(dk(k, "t"), s.transparency)
-                .putInt(dk(k, "c"), s.fg).putInt(dk(k, "d"), s.design)
+            e.putBoolean(dk(k, "w"), s.white).putInt(dk(k, "a"), s.transparency)
+                .putInt(dk(k, "f"), s.fg).putInt(dk(k, "d"), s.design).putBoolean(dk(k, "g"), s.glass)
             val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, KindConfig.provider(k)))
-            ids.forEach { e.remove("w_$it").remove("t_$it").remove("c_$it").remove("d_$it") }
+            ids.forEach { removeId(e, it) }
         }
         e.apply()
     }
 
     fun delete(ctx: Context, ids: IntArray) {
         val e = sp(ctx).edit()
-        ids.forEach { e.remove("w_$it").remove("t_$it").remove("c_$it").remove("d_$it") }
+        ids.forEach { removeId(e, it) }
         e.apply()
+    }
+
+    private fun removeId(e: android.content.SharedPreferences.Editor, id: Int) {
+        for (f in listOf("w", "t", "c", "d", "a", "f", "g")) e.remove("${f}_$id")
     }
 
     fun alphaOf(transparency: Int): Int = ((100 - transparency) * 255 / 100).coerceIn(0, 255)

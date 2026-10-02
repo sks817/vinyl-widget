@@ -15,7 +15,7 @@ import java.time.ZoneId
 object WeatherWidget {
 
     val DESIGN_NAMES = arrayOf("LP 재킷", "불 켜진 텐트", "하늘 원", "큰 날짜 + 텐트", "미니멀", "다이얼", "달력")
-    val WIDE_DESIGN_NAMES = arrayOf("캠핑 파노라마", "텐트 + 날짜 (배경 없음)", "심플 (반투명 그레이)")
+    val WIDE_DESIGN_NAMES = arrayOf("캠핑 파노라마", "텐트 + 날짜", "심플")
 
     fun renderAll(ctx: Context) {
         try {
@@ -43,9 +43,8 @@ object WeatherWidget {
 
     fun build(ctx: Context, style: WidgetStyle, d: WeatherData, wDp: Float = 170f, hDp: Float = 170f): RemoteViews {
         val rv = RemoteViews(ctx.packageName, R.layout.weather_canvas)
-        rv.setInt(R.id.bg_image, "setColorFilter", WidgetPrefs.bgColor(style))
-        rv.setInt(R.id.bg_image, "setImageAlpha", WidgetPrefs.alphaOf(style.transparency))
-        val scene = WeatherScene(ctx, wDp, hDp, style.fg)
+        Palette.applyBackground(rv, style)
+        val scene = WeatherScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style))
         scene.draw(style.design.coerceIn(1, DESIGN_NAMES.size), d)
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
@@ -58,11 +57,13 @@ object WeatherWidget {
         val rv = RemoteViews(ctx.packageName, R.layout.weather_wide)
         val design = style.design.coerceIn(1, WIDE_DESIGN_NAMES.size)
         val simple = design == 3
-        rv.setInt(R.id.bg_image, "setColorFilter", WidgetPrefs.bgColor(style))
-        // 심플: 슬라이더(배경 투명도)가 회색 카드에 적용되므로 위젯 기본 배경은 숨김
-        rv.setInt(R.id.bg_image, "setImageAlpha", if (simple) 0 else WidgetPrefs.alphaOf(style.transparency))
-        val scene = WideScene(ctx, wDp, hDp, style.fg)
-        scene.draw(design, d, WidgetPrefs.alphaOf(style.transparency), style.white)
+        // 심플(검정/흰색): 슬라이더(배경 투명도)가 회색 카드에 적용되므로 위젯 기본 배경은 숨김.
+        // 유리 배경이면 유리 카드가 곧 심플 카드
+        val ownCard = simple && !style.glass
+        Palette.applyBackground(rv, style, visible = !ownCard)
+        val main = Palette.text(ctx, style)
+        val scene = WideScene(ctx, wDp, hDp, main, Palette.sub(ctx, style), Palette.accent(ctx, style))
+        scene.draw(design, d, if (ownCard) WidgetPrefs.alphaOf(style.transparency) else 0, style.white)
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
         rv.setOnClickPendingIntent(R.id.w_tap_refresh, refreshIntent(ctx))
@@ -74,7 +75,11 @@ object WeatherWidget {
             rv.setTextViewTextSize(R.id.w_time, dip, h * 0.40f)
             rv.setViewLayoutMargin(R.id.w_time, RemoteViews.MARGIN_END, h * 0.30f, dip)
             rv.setViewLayoutMargin(R.id.w_time, RemoteViews.MARGIN_BOTTOM, h * 0.125f, dip)
-            rv.setTextColor(R.id.w_time, if (style.white) 0xFF1E2128.toInt() else 0xFFFFFFFF.toInt())
+            if (ownCard) {                                        // 회색 카드 글자는 카드에 맞춘 고정 색
+                rv.setTextColor(R.id.w_time, if (style.white) 0xFF1E2128.toInt() else 0xFFFFFFFF.toInt())
+            } else {
+                Palette.setTextColor(ctx, rv, R.id.w_time, style)
+            }
             rv.setOnClickPendingIntent(R.id.w_time, clockIntent(ctx))
         } else {
             rv.setViewVisibility(R.id.w_time, android.view.View.GONE)

@@ -19,7 +19,10 @@ import kotlin.math.min
  *   - 그림(재킷·텐트·원)의 크기 = 레코드판 지름 D
  *   - 아래 날씨 줄 = 재생 버튼 줄과 같은 높이, 같은 3칸 간격
  */
-class WeatherScene(private val ctx: Context, wDp: Float, hDp: Float, private val fg: Int) {
+class WeatherScene(
+    private val ctx: Context, wDp: Float, hDp: Float,
+    private val fg: Int, private val sub: Int = fg, private val accent: Int = fg
+) {
 
     private val k: Float          // dp당 픽셀 (그림이 너무 커지지 않게 최대 720px로 제한)
     val bitmap: Bitmap
@@ -66,6 +69,8 @@ class WeatherScene(private val ctx: Context, wDp: Float, hDp: Float, private val
         c.drawText(s, x, yTop - p.fontMetrics.ascent, p)
     }
 
+    private val SANS_R = Typeface.create("sans-serif", Typeface.NORMAL)
+
     private fun textMid(s: String, x: Float, yMid: Float, size: Float, tf: Typeface, col: Int) {
         val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = tf; color = col; textAlign = Paint.Align.CENTER }
         val fm = p.fontMetrics
@@ -99,11 +104,12 @@ class WeatherScene(private val ctx: Context, wDp: Float, hDp: Float, private val
         val tw = p.measureText(t); val ic = size * 1.15f; val gap = size * 0.3f
         val start = xs[0] - (ic + gap + tw) / 2
         ctx.getDrawable(d.icon())?.mutate()?.let {
-            it.setTint(fg); it.setBounds(start.toInt(), (y - ic / 2).toInt(), (start + ic).toInt(), (y + ic / 2).toInt()); it.draw(c)
+            it.setTint(accent); it.setBounds(start.toInt(), (y - ic / 2).toInt(), (start + ic).toInt(), (y + ic / 2).toInt()); it.draw(c)
         }
+        // 기온은 진하게, 날씨는 보통, 최저/최고는 한 단계 흐리게 → 정보 위계가 보이게
         textMid(t, start + ic + gap + tw / 2, y, size, SANS, fg)
-        textMid(d.cond(), xs[1], y, size, SANS, fg)
-        textMid(d.rangeText().replace(" ", ""), xs[2], y, size, SANS, fg)
+        textMid(d.cond(), xs[1], y, size, SANS_M, fg)
+        textMid(d.rangeText().replace(" ", ""), xs[2], y, size, SANS_R, sub)
     }
 
     fun draw(design: Int, d: WeatherData) {
@@ -147,7 +153,7 @@ class WeatherScene(private val ctx: Context, wDp: Float, hDp: Float, private val
             }
             4 -> { // 큰 날짜 + 작은 텐트: 도형 없이 글자 중심 (레코드판과 경쟁하지 않음)
                 text(md, areaL + areaW * 0.02f, sq.top, D * 0.42f, SERIF, fg)
-                text(wk, areaL + areaW * 0.04f, sq.top + D * 0.50f, D * 0.10f, SANS_M, fg)
+                text(wk, areaL + areaW * 0.04f, sq.top + D * 0.50f, D * 0.10f, SANS_M, sub)
                 val box = RectF(areaL + areaW * 0.40f, sq.top + D * 0.45f, areaL + areaW, sq.bottom)
                 val icon = if (lit) R.drawable.w_tent_icon else R.drawable.w_tent_icon_day
                 asset(icon, fitBottom(icon, box))

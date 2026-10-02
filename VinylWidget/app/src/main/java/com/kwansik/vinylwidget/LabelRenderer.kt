@@ -13,7 +13,7 @@ object LabelRenderer {
     private const val SIZE = 300
     private const val LABEL_RATIO = 0.62f
 
-    fun draw(art: Bitmap?): Bitmap {
+    fun draw(art: Bitmap?, fallback: Int = 0xFFB23A2E.toInt()): Bitmap {
         val bmp = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         val cx = SIZE / 2f
@@ -33,8 +33,13 @@ object LabelRenderer {
             c.drawCircle(cx, cx, lr, p)
             p.shader = null
         } else {
-            p.color = 0xFFB23A2E.toInt()
+            p.color = fallback                                // 커버가 없으면 배경화면 색을 띤 라벨
             c.drawCircle(cx, cx, lr, p)
+            p.color = 0x22FFFFFF                              // 라벨 안쪽 고리 무늬
+            p.style = Paint.Style.STROKE
+            p.strokeWidth = 3f
+            c.drawCircle(cx, cx, lr * 0.62f, p)
+            p.style = Paint.Style.FILL
         }
         p.style = Paint.Style.STROKE
         p.strokeWidth = 2f

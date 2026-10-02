@@ -5,7 +5,7 @@
     android:layout_height="match_parent">
     <ImageView android:id="@+id/bg_image"
         android:layout_width="match_parent" android:layout_height="match_parent"
-        android:src="@drawable/widget_bg" android:scaleType="fitXY" />
+        android:src="@drawable/widget_bg_glass" android:scaleType="fitXY" />
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -20,17 +20,17 @@
             android:orientation="horizontal">
             <ImageButton android:id="@+id/btn_prev"
                 android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
-                android:src="@drawable/ic_prev" android:scaleType="centerInside"
+                android:src="@drawable/ic_prev_auto" android:scaleType="centerInside"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/prev" />
             <ImageButton android:id="@+id/btn_play"
                 android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
-                android:src="@drawable/ic_play" android:scaleType="centerInside"
+                android:src="@drawable/ic_play_auto" android:scaleType="centerInside"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/play" />
             <ImageButton android:id="@+id/btn_next"
                 android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
-                android:src="@drawable/ic_next" android:scaleType="centerInside"
+                android:src="@drawable/ic_next_auto" android:scaleType="centerInside"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/next" />
         </LinearLayout>

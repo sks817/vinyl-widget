@@ -19,7 +19,10 @@ import kotlin.math.min
  *  1) 파노라마: 날씨·시간에 따라 바뀌는 캠핑 풍경 위에 [큰 날짜 | 기온]
  *  2) 텐트 + 날짜: 배경 없이 [텐트] [큰 날짜] [날씨]
  */
-class WideScene(private val ctx: Context, wDp: Float, hDp: Float, private val fg: Int) {
+class WideScene(
+    private val ctx: Context, wDp: Float, hDp: Float,
+    private val fg: Int, private val sub: Int = fg, private val accent: Int = fg
+) {
     private val k: Float
     val bitmap: Bitmap
     private val c: Canvas
@@ -53,6 +56,7 @@ class WideScene(private val ctx: Context, wDp: Float, hDp: Float, private val fg
         }
     }
 
+    /** cardAlpha = 0이면 회색 카드를 그리지 않고(유리 배경 위) 글자는 fg/sub 색을 씀 */
     fun draw(design: Int, d: WeatherData, cardAlpha: Int = 148, lightCard: Boolean = false) {
         val today = LocalDate.now()
         val md = "${today.monthValue}.${today.dayOfMonth}"
@@ -67,11 +71,14 @@ class WideScene(private val ctx: Context, wDp: Float, hDp: Float, private val fg
             // 카드 = 위젯 영역 전체 → 옆·아래 삼성 위젯들과 가장자리가 정확히 맞음
             val r = RectF(0f, 0f, W, H)
             val h = r.height()
-            val cardRgb = if (lightCard) 0x00F2F3F5 else 0x00272C38
-            c.drawRoundRect(r, h * 0.36f, h * 0.36f,
-                Paint(Paint.ANTI_ALIAS_FLAG).apply { color = (cardAlpha shl 24) or cardRgb })
-            val main = if (lightCard) 0xFF1E2128.toInt() else 0xFFFFFFFF.toInt()
-            val soft = if (lightCard) 0xFF5B616C.toInt() else 0xB3FFFFFF.toInt()
+            val ownCard = cardAlpha > 0
+            if (ownCard) {
+                val cardRgb = if (lightCard) 0x00F2F3F5 else 0x00272C38
+                c.drawRoundRect(r, h * 0.36f, h * 0.36f,
+                    Paint(Paint.ANTI_ALIAS_FLAG).apply { color = (cardAlpha shl 24) or cardRgb })
+            }
+            val main = if (!ownCard) fg else if (lightCard) 0xFF1E2128.toInt() else 0xFFFFFFFF.toInt()
+            val soft = if (!ownCard) sub else if (lightCard) 0xFF5B616C.toInt() else 0xB3FFFFFF.toInt()
             val inset = h * 0.30f
             // 오른쪽: 날짜(작게). 시각(크게)은 시스템 시계 부품이 아래쪽에 들어감
             val right = r.right - inset
@@ -147,7 +154,7 @@ class WideScene(private val ctx: Context, wDp: Float, hDp: Float, private val fg
                 c.drawBitmap(b, null, RectF(pad, H - pad - th, pad + tw, H - pad), Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
                 val x = pad + tw + h * 0.18f
                 textMid(md, x, pad + h * 0.40f, paint(h * 0.52f, SERIF, fg))
-                textMid(wk, x + h * 0.02f, pad + h * 0.82f, paint(h * 0.16f, SANS_M, fg))
+                textMid(wk, x + h * 0.02f, pad + h * 0.82f, paint(h * 0.16f, SANS_M, sub))
             }
             val right = W - pad - h * 0.10f
             if (msg != null) {
@@ -156,8 +163,8 @@ class WideScene(private val ctx: Context, wDp: Float, hDp: Float, private val fg
                 val tp = paint(h * 0.36f, SERIF, fg, Paint.Align.RIGHT)
                 val t = d.tempText(); val tw = tp.measureText(t)
                 textMid(t, right, pad + h * 0.40f, tp)
-                icon(d.icon(), right - tw - h * 0.22f, pad + h * 0.40f, h * 0.30f, fg)
-                textMid("${d.cond()}  ${d.rangeText().replace(" ", "")}", right, pad + h * 0.80f, paint(h * 0.14f, SANS_M, fg, Paint.Align.RIGHT))
+                icon(d.icon(), right - tw - h * 0.22f, pad + h * 0.40f, h * 0.30f, accent)
+                textMid("${d.cond()}  ${d.rangeText().replace(" ", "")}", right, pad + h * 0.80f, paint(h * 0.14f, SANS_M, sub, Paint.Align.RIGHT))
             }
         }
     }

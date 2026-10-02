@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 유리 카드: 반투명 바탕 + 배경화면 색 살짝 + 위쪽 빛 반사 + 얇은 테두리.
+     색은 모두 시스템 색 자원이라 런처가 그릴 때 다크 모드·배경화면 색에 맞춰 저절로 바뀜 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/glass_fill" />
+            <corners android:radius="@android:dimen/system_app_widget_background_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient android:angle="315" android:type="linear"
+                android:startColor="@color/glass_tint" android:endColor="#00000000" />
+            <corners android:radius="@android:dimen/system_app_widget_background_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient android:angle="270" android:type="linear"
+                android:startColor="@color/glass_shine" android:centerColor="#00FFFFFF"
+                android:endColor="#00FFFFFF" />
+            <corners android:radius="@android:dimen/system_app_widget_background_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#00000000" />
+            <stroke android:width="1dp" android:color="@color/glass_stroke" />
+            <corners android:radius="@android:dimen/system_app_widget_background_radius" />
+        </shape>
+    </item>
+</layer-list>

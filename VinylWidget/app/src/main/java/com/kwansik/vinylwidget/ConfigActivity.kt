@@ -25,7 +25,7 @@ import kotlin.math.roundToInt
 /**
  * 위젯 꾸미기
  * - 날씨: 디자인 5종 선택
- * - 공통: 배경색(검정/흰색), 배경 투명도, 버튼(또는 글자·아이콘) 색
+ * - 공통: 배경(자동 유리/검정/흰색), 배경 투명도, 버튼(또는 글자·아이콘) 색 (자동 = 배경화면 색)
  * 미리보기는 실제 위젯과 똑같은 코드로 그려서, 보이는 그대로 홈 화면에 적용됨
  */
 class ConfigActivity : Activity() {
@@ -42,6 +42,7 @@ class ConfigActivity : Activity() {
     private var widgetId = AppWidgetManager.INVALID_APPWIDGET_ID
     private var kind = Kind.MUSIC
     private var white = false
+    private var glass = true
     private var transparency = 0
     private var color = Color.WHITE
     private var design = 1
@@ -63,6 +64,7 @@ class ConfigActivity : Activity() {
     private lateinit var valGradient: GradientDrawable
     private lateinit var hexInput: EditText
     private lateinit var colorChip: View
+    private lateinit var autoColorBtn: Button
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
 
@@ -77,6 +79,7 @@ class ConfigActivity : Activity() {
 
         val s = WidgetPrefs.style(this, kind, targetId())
         white = s.white
+        glass = s.glass
         transparency = s.transparency
         color = s.fg
         design = s.design
@@ -89,12 +92,12 @@ class ConfigActivity : Activity() {
         root.padForSystemBars()
 
         refreshSelectors()
-        applyColor(color, fromHsv = false)
+        if (color == Palette.AUTO) setAutoColor() else applyColor(color, fromHsv = false)
     }
 
     private fun targetId(): Int? = widgetId.takeIf { it != AppWidgetManager.INVALID_APPWIDGET_ID }
     private fun resultIntent() = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-    private fun currentStyle() = WidgetStyle(white, transparency, color, design)
+    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass)
 
     // ---------- 미리보기 (실제 위젯 코드로 그림) ----------
     private fun buildPreview(): View {
@@ -148,7 +151,7 @@ class ConfigActivity : Activity() {
                     setOnClickListener {
                         design = i + 1
                         // 1×4 '심플'은 회색 카드가 곧 배경 → 완전 투명(100%)이면 삼성 위젯과 같은 42%로 맞춰줌
-                        if (kind == Kind.WEATHER_WIDE && design == 3 && transparency >= 95) {
+                        if (kind == Kind.WEATHER_WIDE && design == 3 && !glass && transparency >= 95) {
                             transparency = 42; transBar.progress = 42
                             transLabel.text = "배경 투명도  $transparency%"
                         }
@@ -162,13 +165,14 @@ class ConfigActivity : Activity() {
             panel.addView(space(12))
         }
 
-        // 배경색
-        panel.addView(text("배경색", 16f))
+        // 배경
+        panel.addView(text("배경", 16f))
+        panel.addView(text("자동: 배경화면 색을 띤 반투명 유리 카드 (다크 모드도 따라감)", 12f, 0xFFAAAAAA.toInt()))
         val bgRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("검정" to false, "흰색" to true).forEach { (name, isWhite) ->
+        listOf(Triple("자동", true, false), Triple("검정", false, false), Triple("흰색", false, true)).forEach { (name, isGlass, isWhite) ->
             val b = Button(this).apply {
                 text = name
-                setOnClickListener { white = isWhite; refreshSelectors(); renderPreview() }
+                setOnClickListener { glass = isGlass; white = isWhite; refreshSelectors(); renderPreview() }
             }
             bgButtons += b
             bgRow.addView(b, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -195,6 +199,11 @@ class ConfigActivity : Activity() {
         panel.addView(space(16))
         panel.addView(text(KindConfig.colorTitle(kind), 16f))
         KindConfig.colorNote(kind)?.let { panel.addView(text(it, 12f, 0xFFAAAAAA.toInt())) }
+        autoColorBtn = Button(this).apply {
+            text = "자동 (배경에 맞춤)"
+            setOnClickListener { hexInput.clearFocus(); setAutoColor() }
+        }
+        panel.addView(autoColorBtn)
         for (rowIdx in 0 until 2) {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
             for (i in 0 until 5) {
@@ -267,7 +276,8 @@ class ConfigActivity : Activity() {
 
     private fun refreshSelectors() {
         designButtons.forEachIndexed { i, b -> b.alpha = if (i + 1 == design) 1f else 0.45f }
-        bgButtons.forEachIndexed { i, b -> b.alpha = if ((i == 1) == white) 1f else 0.45f }
+        val bgIndex = if (glass) 0 else if (white) 2 else 1
+        bgButtons.forEachIndexed { i, b -> b.alpha = if (i == bgIndex) 1f else 0.45f }
     }
 
     private fun gradientBar(maxValue: Int, drawable: GradientDrawable) = SeekBar(this).apply {
@@ -290,8 +300,21 @@ class ConfigActivity : Activity() {
         applyColor(Color.HSVToColor(hsv), fromHsv = true)
     }
 
+    /** 글자·버튼 색 '자동': 실제 색은 배경에 따라 정해지므로 표시만 지금 색으로 */
+    private fun setAutoColor() {
+        applyColor(Palette.accent(this, currentStyle().copy(fg = Palette.AUTO)), fromHsv = false)
+        color = Palette.AUTO
+        autoColorBtn.alpha = 1f
+        swatches.forEach { (it.background as GradientDrawable).setStroke(0, Color.WHITE) }
+        updatingUi = true
+        hexInput.setText("")
+        updatingUi = false
+        renderPreview()
+    }
+
     private fun applyColor(c: Int, fromHsv: Boolean) {
         color = c or 0xFF000000.toInt()
+        if (::autoColorBtn.isInitialized) autoColorBtn.alpha = 0.45f
         if (!fromHsv) Color.colorToHSV(color, hsv)
         updatingUi = true
         hueBar.progress = hsv[0].roundToInt()
