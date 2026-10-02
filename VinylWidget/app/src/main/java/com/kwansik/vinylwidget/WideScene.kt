@@ -206,7 +206,8 @@ class WideScene(
                     val tp = paint(big, SERIF, main, Paint.Align.RIGHT)
                     textMid(d.tempText(), right, y1, tp)
                     val ic = big * 1.05f
-                    wIcon(d, right - tp.measureText(d.tempText()) - big * 0.08f - ic / 2, y1, ic, main)
+                    // 병맛 그림은 하늘에 이미 캐릭터가 있으니 기온 옆 아이콘은 생략
+                    if (!quirky) wIcon(d, right - tp.measureText(d.tempText()) - big * 0.08f - ic / 2, y1, ic, main)
                     val range = d.rangeText().replace(" ", "")
                     textMid(if (range.isEmpty()) d.cond() else "${d.cond()} · $range", right, y2, paint(sm, SANS_M, soft, Paint.Align.RIGHT))
                 }

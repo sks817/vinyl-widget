@@ -176,10 +176,11 @@ function chair(x, base, s, col) {
     <path d="M${x - s * 0.38} ${base - s * 0.55} Q${x} ${base - s * 0.4} ${x + s * 0.38} ${base - s * 0.55}" fill="${col}" opacity=".85"/>`;
 }
 
+let CLOUD_X = [0.08, 0.98];   // 구름이 놓일 가로 범위 (파노라마는 글자 자리를 피해 가운데만)
 function clouds(W, H, y, n, col, op, seed, scale) {
   const r = rng(seed); let s = '';
   for (let i = 0; i < n; i++) {
-    const cx = W * (0.08 + r() * 0.9), cy = y + (r() - 0.5) * H * 0.1, w = W * scale * (0.6 + r() * 0.6);
+    const cx = W * (CLOUD_X[0] + r() * (CLOUD_X[1] - CLOUD_X[0])), cy = y + (r() - 0.5) * H * 0.1, w = W * scale * (0.6 + r() * 0.6);
     const shapes = `<ellipse cx="${cx}" cy="${cy}" rx="${w * 0.5}" ry="${w * 0.12}"/><circle cx="${cx - w * 0.14}" cy="${cy - w * 0.07}" r="${w * 0.15}"/><circle cx="${cx + w * 0.1}" cy="${cy - w * 0.11}" r="${w * 0.2}"/>`;
     // 병맛: 같은 모양을 굵은 잉크로 한 번, 그 위에 색으로 한 번 → 바깥 윤곽선만 남음
     if (Q) s += `<g opacity="${Math.min(1, op + 0.1)}"><g fill="${INK}" stroke="${INK}" stroke-width="${Math.max(4, w * 0.036)}">${shapes}</g><g fill="${col}">${shapes}</g></g>`;
@@ -222,6 +223,7 @@ function scene(kind, night, fmt, quirky = false) {
   const pa = fmt === 'pa';
   const horizon = pa ? H * 0.76 : fmt === 'sq' ? H * 0.6 : H * 0.70;
   const id = `${key}${fmt}${Q ? 'q' : ''}`;
+  CLOUD_X = pa ? [0.33, 0.67] : [0.08, 0.98];
   let s = `<defs><linearGradient id="sky${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.sky[0]}"/><stop offset=".62" stop-color="${p.sky[1]}"/><stop offset="1" stop-color="${p.sky[2]}"/></linearGradient>
     <linearGradient id="gr${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.ground[0]}"/><stop offset="1" stop-color="${p.ground[1]}"/></linearGradient>
     <radialGradient id="sun${id}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff6d8" stop-opacity=".9"/><stop offset=".35" stop-color="#ffe7a8" stop-opacity=".45"/><stop offset="1" stop-color="#ffe7a8" stop-opacity="0"/></radialGradient></defs>`;

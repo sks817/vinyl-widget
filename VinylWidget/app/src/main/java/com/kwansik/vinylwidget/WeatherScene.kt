@@ -198,7 +198,8 @@ class WeatherScene(
                     val condBase = bottom - S * 0.095f
                     c.drawText(d.cond(), right, condBase, cp)
                     val ic = S * 0.2f
-                    wIcon(d, right - ic / 2 + S * 0.02f, condBase - S * 0.085f - ic / 2, ic, white)
+                    // 병맛 그림은 하늘에 이미 캐릭터가 있으니 여기 아이콘은 생략
+                    if (!quirky) wIcon(d, right - ic / 2 + S * 0.02f, condBase - S * 0.085f - ic / 2, ic, white)
                 }
             }
             2 -> { // 불 켜진 텐트: 날짜를 텐트 천 위에
