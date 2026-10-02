@@ -128,6 +128,8 @@ class MemoScene(
     private fun rr(l: Float, t: Float, w: Float, h: Float, r: Float, col: Int) =
         c.drawRoundRect(RectF(l, t, l + w, t + h), r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = col })
     private fun dot(x: Float, y: Float, r: Float, col: Int) = c.drawCircle(x, y, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = col })
+    /** 보조 글자: 고른 글자색을 85% 진하기로 (투명한 보조색은 유리 바탕 위에서 묻혀 보임) */
+    private val soft get() = a(fg, 0xD9)
     private val track get() = a(fg, 0x17)
     private val line get() = a(fg, 0x1F)
     private fun solid(col: Int) = col or 0xFF000000.toInt()
@@ -209,7 +211,7 @@ class MemoScene(
         top((if (e.day == today) "다음 · " else "") + rel(e), lx, y - k, p(11f * title / 22f + 0.5f, 700, solid(e.color)))
         val np = p(title, 800, fg)
         top(ell(e.title, np, maxW - 14f * k), lx, y + 15f * k * title / 22f, np)
-        top(if (e.day == today) span(e) else (e.start ?: "종일"), lx, y + 45f * k * title / 22f, p(12f * title / 22f + 0.5f, 500, sub))
+        top(if (e.day == today) span(e) else (e.start ?: "종일"), lx, y + 45f * k * title / 22f, p(12f * title / 22f + 0.5f, 500, soft))
     }
 
     /** 모서리를 많이 둥글게 하면 글자가 곡선 밖으로 나가지 않게 여백을 늘림 */
@@ -245,7 +247,7 @@ class MemoScene(
             val x = hBar(pd, W - pd, ty, 10f * k, timed, h0, h1, false)
             needle(x(nowH), ty - 5f * k, ty + 15f * k)
             val y = H - pd - 12f * k
-            if (next == null) { mid(emptyMsg, pd, y, p(14f, 700, sub)); return }
+            if (next == null) { mid(emptyMsg, pd, y, p(14f, 700, soft)); return }
             rr(pd, y - 15f * k, 4f * k, 30f * k, 2f * k, solid(next.color))
             mid(rel(next), pd + 13f * k, y - 7f * k, p(10f, 700, solid(next.color)))
             val right0 = W - pd - 80f * k
@@ -255,21 +257,21 @@ class MemoScene(
             c.drawRect(W - pd - 70f * k, y - 12f * k, W - pd - 69f * k, y + 12f * k, Paint().apply { color = line })
             val f = after.firstOrNull()
             if (f != null) {
-                mid("이후 " + (if (f.day == today) (f.start ?: "종일") else dayName(f.day)), W - pd, y - 6f * k, p(10f, 500, sub, Paint.Align.RIGHT))
+                mid("이후 " + (if (f.day == today) (f.start ?: "종일") else dayName(f.day)), W - pd, y - 6f * k, p(10f, 500, soft, Paint.Align.RIGHT))
                 mid(ell(f.title, p(11f, 700, fg), 62f * k), W - pd, y + 8f * k, p(11f, 700, fg, Paint.Align.RIGHT))
-            } else mid("이후 없음", W - pd, y, p(10f, 500, sub, Paint.Align.RIGHT))
+            } else mid("이후 없음", W - pd, y, p(10f, 500, soft, Paint.Align.RIGHT))
             return
         }
 
         if (wide) {                                           // ---- 4×2 ----
             val pd = edge(20f * k)
-            top("오늘", pd, pd - k, p(11f, 700, sub))
-            mid(headRight, W - pd, pd + 6f * k, p(11f, 600, sub, Paint.Align.RIGHT))
+            top("오늘", pd, pd - k, p(11f, 700, soft))
+            mid(headRight, W - pd, pd + 6f * k, p(11f, 600, soft, Paint.Align.RIGHT))
             val ty = pd + 24f * k
             val x = hBar(pd, W - pd, ty, 16f * k, timed, h0, h1, true)
             needle(x(nowH), ty - 6f * k, ty + 22f * k)
             val y = ty + 52f * k
-            if (next == null) { mid(emptyMsg, pd, y + 24f * k, p(16f, 800, sub)); mid(tomorrowS, pd, y + 50f * k, p(11f, 600, sub)); return }
+            if (next == null) { mid(emptyMsg, pd, y + 24f * k, p(16f, 800, soft)); mid(tomorrowS, pd, y + 50f * k, p(11f, 600, soft)); return }
             val rx = W - pd - 118f * k
             nextBlock(next, pd, y, rx - 14f * k - pd - 8f * k, 22f, 62f * k)
             c.drawRect(rx - 14f * k, y + 2f * k, rx - 13f * k, y + 60f * k, Paint().apply { color = line })
@@ -277,11 +279,11 @@ class MemoScene(
             after.filter { it.day == today }.take(2).forEach { rows += Triple(it.title, it.start ?: "종일", it.color) }
             if (rows.size < 2 && tomorrow.isNotEmpty() && next.day == today)
                 rows += Triple("내일 · " + tomorrow[0].title, if (tomorrow.size > 1) "외 ${tomorrow.size - 1}" else (tomorrow[0].start ?: "종일"), tomorrow[0].color)
-            if (rows.isEmpty()) rows += Triple("이후 일정 없음", "", sub)
+            if (rows.isEmpty()) rows += Triple("이후 일정 없음", "", soft)
             var yy = y
             for ((t, m, col) in rows.take(2)) {
                 dot(rx + 3f * k, yy + 9f * k, 3f * k, solid(col))
-                val mp = p(11f, 500, sub, Paint.Align.RIGHT)
+                val mp = p(11f, 500, soft, Paint.Align.RIGHT)
                 mid(m, W - pd, yy + 9f * k, mp)
                 top(ell(t, p(12f, 700, fg), W - pd - mp.measureText(m) - 6f * k - (rx + 12f * k)), rx + 12f * k, yy + k, p(12f, 700, fg))
                 yy += 34f * k
@@ -291,14 +293,17 @@ class MemoScene(
 
         if (hd >= wd * 1.5f) {                                // ---- 2×4: 세로 막대 (세로로 길어 글자를 크게) ----
             val pd = edge(18f * k)
-            top("오늘", pd, pd - k, p(13f, 700, sub))
-            mid(if (todays.isEmpty()) "일정 없음" else "일정 ${todays.size}", W - pd, pd + 7f * k, p(13f, 600, sub, Paint.Align.RIGHT))
+            top("오늘", pd, pd - k, p(13f, 700, soft))
+            mid(if (todays.isEmpty()) "일정 없음" else "일정 ${todays.size}", W - pd, pd + 7f * k, p(13f, 600, soft, Paint.Align.RIGHT))
             val t0 = pd + 34f * k; val b0 = H - pd - 42f * k; val lx = pd + 8f * k
             val yOf = { hh: Float -> t0 + (b0 - t0) * ((hh - h0) / (h1 - h0)).coerceIn(0f, 1f) }
             rr(lx, t0, 14f * k, b0 - t0, 7f * k, track)
             var t = kotlin.math.ceil(h0 / 3f) * 3f; if (t <= h0) t += 3f
-            while (t < h1) { mid(t.toInt().toString(), lx - 5f * k, yOf(t), p(10f, 500, sub, Paint.Align.RIGHT)); t += 3f }
             val ny = yOf(nowH)
+            while (t < h1) {                                  // 지금 바늘과 겹치는 눈금 숫자는 생략
+                if (kotlin.math.abs(yOf(t) - ny) > 12f * k) mid(t.toInt().toString(), lx - 5f * k, yOf(t), p(10f, 500, sub, Paint.Align.RIGHT))
+                t += 3f
+            }
             val tx = lx + 28f * k
             var lastY = -999f
             for (e in timed) {
@@ -308,36 +313,36 @@ class MemoScene(
                 if (ly < ny + 6f * k && ly + 40f * k > ny - 6f * k) ly = if (hourOf(e.beginMs) < nowH) min(ly, ny - 46f * k) else ny + 8f * k
                 if (ly + 38f * k > b0 + 12f * k) break
                 val isN = e == next
-                top(if (isN) "다음 · " + rel(e) else span(e), tx, ly, p(12f, if (isN) 700 else 500, if (isN) solid(e.color) else sub))
-                val np = p(if (isN) 19f else 16f, if (isN) 800 else 700, if (done(e)) sub else fg)
+                top(if (isN) "다음 · " + rel(e) else span(e), tx, ly, p(12f, if (isN) 700 else 500, if (isN) solid(e.color) else soft))
+                val np = p(if (isN) 19f else 16f, if (isN) 800 else 700, if (done(e)) soft else fg)
                 top(ell(e.title, np, W - tx - pd), tx, ly + 16f * k, np)
                 lastY = ly
             }
             needle(ny, lx - 5f * k, lx + 19f * k, vertical = true)
-            if (timed.isEmpty()) mid(ell(emptyMsg, p(14f, 700, sub), W - tx - pd), tx, (t0 + b0) / 2, p(14f, 700, sub))
+            if (timed.isEmpty()) mid(ell(emptyMsg, p(14f, 700, soft), W - tx - pd), tx, (t0 + b0) / 2, p(14f, 700, soft))
             c.drawRect(pd, H - pd - 28f * k, W - pd, H - pd - 27f * k, Paint().apply { color = line })
-            mid(ell(tomorrowS, p(13f, 600, sub), W - pd * 2), pd, H - pd - 10f * k, p(13f, 600, sub))
+            mid(ell(tomorrowS, p(13f, 600, soft), W - pd * 2), pd, H - pd - 10f * k, p(13f, 600, soft))
             return
         }
 
         // ---- 2×2 ----
         val pd = edge(16f * k)
-        top(if (todays.isEmpty()) "오늘 · 일정 없음" else "오늘 · 일정 ${todays.size}", pd, pd - 3f * k, p(10f, 700, sub))
+        top(if (todays.isEmpty()) "오늘 · 일정 없음" else "오늘 · 일정 ${todays.size}", pd, pd - 3f * k, p(10f, 700, soft))
         val ty = pd + 26f * k
         val x = hBar(pd, W - pd, ty, 12f * k, timed, h0, h1, false)
         needle(x(nowH), ty - 5f * k, ty + 17f * k)
         val y = ty + 30f * k
-        if (next == null) { mid(emptyMsg, pd, y + 24f * k, p(13f, 800, sub)); return }
+        if (next == null) { mid(emptyMsg, pd, y + 24f * k, p(13f, 800, soft)); return }
         nextBlock(next, pd, y, W - pd * 2, 18f, 56f * k)
         val f = after.firstOrNull()
         c.drawRect(pd, H - pd - 24f * k, W - pd, H - pd - 23f * k, Paint().apply { color = line })
         if (f != null) {
             dot(pd + 3f * k, H - pd - 9f * k, 3f * k, solid(f.color))
             val m = if (f.day == today) (f.start ?: "종일") else dayName(f.day)
-            val mp = p(10f, 500, sub, Paint.Align.RIGHT)
+            val mp = p(10f, 500, soft, Paint.Align.RIGHT)
             mid(m, W - pd, H - pd - 9f * k, mp)
             mid(ell(f.title, p(11f, 700, fg), W - pd - mp.measureText(m) - 6f * k - (pd + 12f * k)), pd + 12f * k, H - pd - 9f * k, p(11f, 700, fg))
-        } else mid(tomorrowS, pd, H - pd - 9f * k, p(11f, 600, sub))
+        } else mid(tomorrowS, pd, H - pd - 9f * k, p(11f, 600, soft))
     }
 }
 

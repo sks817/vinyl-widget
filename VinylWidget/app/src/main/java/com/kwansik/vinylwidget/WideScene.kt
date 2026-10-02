@@ -143,7 +143,7 @@ class WideScene(
                 CharacterLayouts(ctx, c, W, H, k, fg, sub, shadow, customFg, cardColor).draw1x4(design - 4, d, cardAlpha)
             }
             1 -> { // ---- 캠핑 파노라마 ----
-                val pad = 6f * k
+                val pad = if (artShadow) 4f * k else 0f             // 다른 위젯과 가장자리가 맞도록 위젯을 꽉 채움 (그림자 있을 때만 여백)
                 val r = RectF(pad, pad, W - pad, H - pad)
                 val h = r.height()
                 val rad = h * (if (corner < 0) 30 else corner) / 100f        // 모서리: 높이의 % (기본 30)
