@@ -33,8 +33,11 @@ class BigScene(
     companion object {
         const val ART = 0; const val PLAIN = 1; const val CHAR = 2
 
-        /** 2×2를 옆으로 늘렸거나 1×4를 아래로 늘렸으면 4×2 배치 */
-        fun isBig(wDp: Float, hDp: Float) = hDp >= 120f && wDp >= hDp * 1.55f
+        /**
+         * 2×2를 옆으로 늘렸거나 1×4를 아래로 늘렸으면 4×2 배치.
+         * 기종·런처에 따라 한 줄 칸이 120dp를 넘기도 해서, 실제로 두 줄쯤(150dp 이상) 늘렸을 때만 바꿈
+         */
+        fun isBig(wDp: Float, hDp: Float) = hDp >= 150f && wDp >= hDp * 1.5f
 
         /** 아래 예보 줄 높이(dp): 이 부분을 누르면 날씨 사이트 */
         fun rowDp(hDp: Float) = hDp * 0.4f
@@ -75,7 +78,7 @@ class BigScene(
     private fun hourlyRow(d: WeatherData, area: RectF, ink: Int, soft: Int) {
         val hs = d.hourly
         if (hs.isEmpty()) {
-            mid("${d.cond()} · ${Quips.of(d)}", area.centerX(), area.centerY(), p(small(area.height() * 0.2f), MED, soft, Paint.Align.CENTER))
+            mid("${d.cond()} · ${Quips.of(d)}", area.centerX(), area.centerY(), p(small(area.height() * 0.26f), BOLD, ink, Paint.Align.CENTER))
             return
         }
         val n = min(6, hs.size); val cw = area.width() / n
@@ -122,12 +125,12 @@ class BigScene(
                 c.restore()
                 if (glassArt) GlassArt.draw(c, r, rad)
                 val h = r.height(); val m = h * 0.1f
-                top(md, r.left + m, r.top + h * 0.07f, p(h * 0.22f, SERIF, art.main))
-                top(wk, r.left + m * 1.04f, r.top + h * 0.33f, p(small(h * 0.075f), MED, art.sub))
+                top(md, r.left + m, r.top + h * 0.06f, p(h * 0.25f, SERIF, art.main))
+                top(wk, r.left + m * 1.04f, r.top + h * 0.35f, p(small(h * 0.085f), MED, art.sub))
                 if (msg != null) top(msg, r.right - m, r.top + h * 0.1f, p(small(h * 0.08f), BOLD, art.main, Paint.Align.RIGHT))
                 else {
-                    top(d.tempText(), r.right - m, r.top + h * 0.07f, p(h * 0.22f, SERIF, art.main, Paint.Align.RIGHT))
-                    top(d.rangeText().replace(" ", ""), r.right - m, r.top + h * 0.33f, p(small(h * 0.075f), MED, art.sub, Paint.Align.RIGHT))
+                    top(d.tempText(), r.right - m, r.top + h * 0.06f, p(h * 0.25f, SERIF, art.main, Paint.Align.RIGHT))
+                    top(d.rangeText().replace(" ", ""), r.right - m, r.top + h * 0.35f, p(small(h * 0.085f), MED, art.sub, Paint.Align.RIGHT))
                 }
                 val white = if (customFg) fg else 0xFFFFFFFF.toInt()
                 val soft = if (customFg) sub else 0xCCFFFFFF.toInt()
