@@ -12,10 +12,14 @@ import android.graphics.Paint
  */
 class ArtText(
     private val c: Canvas, private val quirky: Boolean,
-    custom: Int?, customSub: Int, darkText: Boolean
+    custom: Int?, customSub: Int, darkText: Boolean,
+    /** 눈 오는 낮처럼 그림 전체가 하얀가 → 병맛이어도 흰 글자 대신 진한 글자 */
+    whiteArt: Boolean = false
 ) {
     companion object {
         private const val WHITE = 0xFFFFFFFF.toInt()
+        private const val INK = 0xFF2B2622.toInt()
+        private const val INK_SUB = 0xFF4A433E.toInt()
         private const val CREAM = 0xFFFBF1DC.toInt()
         private const val CREAM_SUB = 0xFFD9CFC0.toInt()
         private const val DARK = 0xFF23262E.toInt()
@@ -24,10 +28,12 @@ class ArtText(
         fun light(col: Int) = Color.luminance(col or 0xFF000000.toInt()) > 0.45f
     }
 
-    val main: Int = custom ?: if (quirky) WHITE else if (darkText) DARK else CREAM
+    private val inkOnWhite = quirky && whiteArt
+    val main: Int = custom ?: if (inkOnWhite) INK else if (quirky) WHITE else if (darkText) DARK else CREAM
     /** 보조 글자(요일 등) */
     val sub: Int = when {
         custom != null -> customSub
+        inkOnWhite -> INK_SUB
         quirky -> 0xE6FFFFFF.toInt()
         darkText -> DARK_SUB
         else -> CREAM_SUB

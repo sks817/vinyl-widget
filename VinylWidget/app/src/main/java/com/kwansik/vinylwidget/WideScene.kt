@@ -156,7 +156,7 @@ class WideScene(
                               else { val hh = (b.width / ar).toInt(); Rect(0, (b.height - hh) / 2, b.width, (b.height + hh) / 2) }
                     c.drawBitmap(b, src, r, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
                 }
-                val art = ArtText(c, quirky, if (customFg) fg else null, sub, !night && kind != "rain")
+                val art = ArtText(c, quirky, if (customFg) fg else null, sub, !night && kind != "rain", kind == "snow" && !night)
                 if (art.needsScrim) {                               // 밝은 글자 뒤(양쪽 끝)만 옅게 눌러 줌
                     val edge = r.height() * 1.6f
                     c.drawRect(r.left, r.top, r.left + edge, r.bottom, Paint().apply {

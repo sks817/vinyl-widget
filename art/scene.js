@@ -226,7 +226,7 @@ function scene(kind, night, fmt, quirky = false) {
   const pa = fmt === 'pa';
   const horizon = pa ? H * 0.76 : fmt === 'sq' ? H * 0.6 : H * 0.70;
   const id = `${key}${fmt}${Q ? 'q' : ''}`;
-  CLOUD_X = pa ? [0.33, 0.67] : (Q && fmt === 'sq') ? [0.5, 0.98] : [0.08, 0.98];   // 병맛 재킷: 왼쪽 위 날짜 자리 비움
+  CLOUD_X = pa ? [0.33, 0.67] : (Q && fmt === 'sq') ? [0.72, 1.0] : [0.08, 0.98];   // 병맛 재킷: 왼쪽 위 날짜 자리 비움
   let s = `<defs><linearGradient id="sky${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.sky[0]}"/><stop offset=".62" stop-color="${p.sky[1]}"/><stop offset="1" stop-color="${p.sky[2]}"/></linearGradient>
     <linearGradient id="gr${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.ground[0]}"/><stop offset="1" stop-color="${p.ground[1]}"/></linearGradient>
     <radialGradient id="sun${id}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff6d8" stop-opacity=".9"/><stop offset=".35" stop-color="#ffe7a8" stop-opacity=".45"/><stop offset="1" stop-color="#ffe7a8" stop-opacity="0"/></radialGradient></defs>`;

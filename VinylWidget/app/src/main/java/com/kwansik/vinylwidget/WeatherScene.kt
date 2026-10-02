@@ -154,7 +154,7 @@ class WeatherScene(
         val kind = d.skyKind()
         val lit = night || kind == "rain"                      // 밤이거나 비 오는 날엔 텐트 불을 켬
         val darkText = !night && kind != "rain"                 // 밝은 낮 하늘엔 진한 글자
-        val art = ArtText(c, quirky, if (customFg) fg else null, sub, darkText)
+        val art = ArtText(c, quirky, if (customFg) fg else null, sub, darkText, kind == "snow" && !night)
         fun ap(size: Float, tf: Typeface, col: Int, a: Paint.Align = Paint.Align.LEFT) =
             Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = tf; color = col; textAlign = a }
 
@@ -224,7 +224,7 @@ class WeatherScene(
                     c.restore()
                 }
                 art.top(md, sq.centerX(), sq.top + D * 0.07f, ap(D * 0.27f, SERIF, art.main, Paint.Align.CENTER))
-                art.top(wk, sq.centerX(), sq.top + D * 0.35f, ap(D * 0.07f, SANS_M, art.sub, Paint.Align.CENTER))
+                art.top(wk, sq.centerX(), sq.top + D * 0.385f, ap(D * 0.07f, SANS_M, art.sub, Paint.Align.CENTER))
                 bottomRow(d, icon = false)                          // 원 안 하늘에 이미 해·구름이 있으니 아이콘 생략
             }
             4 -> { // 큰 날짜 + 작은 텐트: 도형 없이 글자 중심 (레코드판과 경쟁하지 않음)
