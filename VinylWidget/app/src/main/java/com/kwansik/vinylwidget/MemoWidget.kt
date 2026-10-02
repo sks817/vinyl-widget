@@ -62,7 +62,8 @@ object CalendarReader {
                 while (c.moveToNext()) {
                     val title = c.getString(0)?.takeIf { it.isNotBlank() } ?: "(제목 없음)"
                     val b = c.getLong(1); val e = c.getLong(2); val allDay = c.getInt(3) == 1
-                    if (!allDay && e < now) continue                       // 이미 끝난 일정은 빼기
+                    // 끝난 일정: 오늘 것만 남김 (하루 막대에 흐리게), 지난날 것은 빼기
+                    if (!allDay && e < now && Instant.ofEpochMilli(b).atZone(zone).toLocalDate() != today) continue
                     // 종일 일정은 UTC 자정 기준으로 저장됨
                     val day = if (allDay) Instant.ofEpochMilli(b).atZone(ZoneOffset.UTC).toLocalDate()
                               else Instant.ofEpochMilli(b).atZone(zone).toLocalDate()
@@ -79,37 +80,29 @@ object CalendarReader {
         } catch (e: Exception) {
             Log.e("VinylWidget", "calendar", e)
         }
-        return out.sortedWith(compareBy({ it.day }, { !it.allDay }, { it.start ?: "" }))
+        return out.sortedWith(compareBy({ it.day }, { !it.allDay }, { it.beginMs }))
     }
 }
 
 /**
- * 일정 위젯 그림. 이 앱다운 두 가지 디자인 (기본 캘린더 위젯과 다르게):
- *  SETLIST = 오늘의 셋리스트 — 일정이 LP 트랙리스트(01, 02…)가 되고 날마다 SIDE A(오늘)·B(내일)…, 다음 일정은
- *            'NEXT TRACK'(강조 띠 + 이퀄라이저 + 남은 시간). 옆에 레코드 위젯과 같은 색의 LP가 걸쳐 있음
- *  TICKET  = 티켓 — 다음 일정이 레트로 입장권(절취선·홈·바코드, 스텁에 시각과 남은 시간), 나머지는 아래 목록
- * 바탕·글자색은 다른 위젯과 같은 공통 배경과 자동 색. 날짜는 넣지 않음(날씨·날짜 위젯과 같이 쓰는 걸 전제)
- * 크기별로 배치가 바뀜: 4×1 / 4×2 / 2×4·2×2
+ * 일정 위젯 = '하루 타임라인'.
+ *  - 오늘을 가로(2×4는 세로) 막대 하나로: 일정은 길이만큼의 색 캡슐(지난 일정은 흐리게), 지금 시각엔 바늘.
+ *    바쁜 시간과 빈 시간이 한눈에 보임. 병맛이면 바늘 끝이 지금 날씨 캐릭터
+ *  - 다음 일정은 크게(색 막대 + 남은 시간 + 제목 + 시각), 그 뒤 일정 한두 개와 내일 일정은 작게
+ *  - 바탕·글자색은 다른 위젯과 같은 공통 배경과 자동 색. 날짜는 넣지 않음(날씨·날짜 위젯과 같이 쓰는 걸 전제)
+ *  - 크기별: 4×1 / 4×2 / 2×4 / 2×2 (치수는 dp 기준, 시안 cal4와 같음)
  */
 class MemoScene(
     private val ctx: Context, wDp: Float, hDp: Float,
-    private val fg: Int, private val sub: Int, private val accent: Int,
-    private val quirky: Boolean, private val design: Int = SETLIST,
-    private val discColor: Int = 0xFF111111.toInt(), private val labelColor: Int = 0xFF7E6BC4.toInt()
+    private val fg: Int, private val sub: Int, private val accent: Int, private val quirky: Boolean
 ) {
-    companion object {
-        const val SETLIST = 1; const val TICKET = 2
-        val DESIGN_NAMES = arrayOf("셋리스트", "티켓")
-        private const val INK = 0xFF2B2622.toInt()
-    }
-
     val bitmap: Bitmap
     private val c: Canvas
     private val W: Float
     private val H: Float
     private val k: Float
-    private val wDp = wDp
-    private val hDp = hDp
+    private val wd = wDp
+    private val hd = hDp
 
     init {
         val dens = WidgetGeom.density(ctx)
@@ -118,13 +111,10 @@ class MemoScene(
         c = Canvas(bitmap); W = bitmap.width.toFloat(); H = bitmap.height.toFloat()
     }
 
-    private val SERIF = Typeface.create(Typeface.SERIF, Typeface.BOLD)
-    private val BLACK = Typeface.create("sans-serif-black", Typeface.NORMAL)
-    private val BOLD = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-    private val MED = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-    private fun p(size: Float, tf: Typeface, col: Int, a: Paint.Align = Paint.Align.LEFT) =
-        Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = tf; color = col; textAlign = a }
-    private fun small(v: Float) = max(v, 10f * k)
+    private fun tf(weight: Int) = Typeface.create(Typeface.SANS_SERIF, weight, false)
+    /** 글자(크기 dp, 굵기 400~800) */
+    private fun p(sizeDp: Float, weight: Int, col: Int, a: Paint.Align = Paint.Align.LEFT) =
+        Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = sizeDp * k; typeface = tf(weight); color = col; textAlign = a }
     private fun top(s: String, x: Float, y: Float, pt: Paint) = c.drawText(s, x, y - pt.fontMetrics.ascent, pt)
     private fun mid(s: String, x: Float, y: Float, pt: Paint) { val fm = pt.fontMetrics; c.drawText(s, x, y - (fm.ascent + fm.descent) / 2f, pt) }
     private fun ell(s: String, pt: Paint, maxW: Float): String {
@@ -133,257 +123,205 @@ class MemoScene(
         var t = s; while (t.isNotEmpty() && pt.measureText("$t…") > maxW) t = t.dropLast(1)
         return "$t…"
     }
-    private fun alpha(col: Int, a: Int) = (col and 0x00FFFFFF) or (a shl 24)
+    private fun a(col: Int, al: Int) = (col and 0x00FFFFFF) or (al shl 24)
     private fun rr(l: Float, t: Float, w: Float, h: Float, r: Float, col: Int) =
         c.drawRoundRect(RectF(l, t, l + w, t + h), r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = col })
+    private fun dot(x: Float, y: Float, r: Float, col: Int) = c.drawCircle(x, y, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = col })
+    private val track get() = a(fg, 0x17)
+    private val line get() = a(fg, 0x1F)
+    private fun solid(col: Int) = col or 0xFF000000.toInt()
 
-    // ---- 시각 글자 ----
-    private fun dayName(d: LocalDate): String {
-        val t = LocalDate.now()
-        return when (d) { t -> "오늘"; t.plusDays(1) -> "내일"
-            else -> "${d.monthValue}.${d.dayOfMonth}(${d.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.KOREAN)})" }
+    // ---- 시간 계산 ----
+    private val zone = ZoneId.systemDefault()
+    private val today = LocalDate.now()
+    private val nowMs = System.currentTimeMillis()
+    private fun hourOf(ms: Long): Float {
+        val z = Instant.ofEpochMilli(ms).atZone(zone)
+        if (z.toLocalDate().isBefore(today)) return 0f
+        if (z.toLocalDate().isAfter(today)) return 24f
+        return z.hour + z.minute / 60f
     }
-    private fun span(e: CalEvent): String = when {
-        e.allDay -> "${dayName(e.day)} · 종일"
-        else -> "${dayName(e.day)} ${e.start}" + (if (e.day == LocalDate.now() && e.end != null) " – ${e.end}" else "")
-    }
-    private fun whenS(e: CalEvent) = if (e.allDay) "${dayName(e.day)} · 종일" else "${dayName(e.day)} ${e.start}"
+    private val nowH = hourOf(nowMs)
+    private fun done(e: CalEvent) = !e.allDay && e.endMs in 1..nowMs
     private fun rel(e: CalEvent): String {
-        val now = System.currentTimeMillis()
-        if (e.allDay) return if (e.day == LocalDate.now()) "오늘 종일" else dayName(e.day)
-        if (e.beginMs in 1..now && now < e.endMs) return "진행 중"
-        val min = (e.beginMs - now) / 60_000
+        if (e.allDay) return if (e.day == today) "오늘 종일" else dayName(e.day)
+        if (e.beginMs in 1..nowMs && nowMs < e.endMs) return "진행 중"
+        val min = (e.beginMs - nowMs) / 60_000
         return when {
-            e.beginMs <= 0L -> dayName(e.day)
+            e.day != today -> dayName(e.day)
             min < 1 -> "곧 시작"
             min < 60 -> "${min}분 후"
-            e.day == LocalDate.now() -> "${min / 60}시간 후"
-            else -> dayName(e.day)
+            else -> if (min % 60 >= 30) "${min / 60}시간 반 후" else "${min / 60}시간 후"
         }
     }
+    private fun dayName(d: LocalDate) = when (d) {
+        today -> "오늘"; today.plusDays(1) -> "내일"
+        else -> "${d.monthValue}.${d.dayOfMonth}(${d.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.KOREAN)})"
+    }
+    private fun span(e: CalEvent) = if (e.allDay) "종일" else "${e.start} – ${e.end ?: ""}".trimEnd(' ', '–')
 
-    /** 이퀄라이저 막대 3개 */
-    private fun eq(x: Float, y: Float, h: Float, col: Int) {
-        val w = h * 0.22f
-        floatArrayOf(0.5f, 1f, 0.72f).forEachIndexed { i, f -> rr(x + i * w * 1.6f, y + h * (1 - f), w, h * f, w * 0.3f, col) }
+    /** 막대가 보여줄 시간 범위: 기본 8~23시, 일정이 그 밖에 있으면 넓힘 (3시간 단위) */
+    private fun range(timed: List<CalEvent>): Pair<Float, Float> {
+        var h0 = 8f; var h1 = 23f
+        for (e in timed) { h0 = min(h0, kotlin.math.floor(hourOf(e.beginMs) / 3f) * 3f); h1 = max(h1, kotlin.math.ceil(hourOf(e.endMs))) }
+        return h0.coerceIn(0f, 21f) to h1.coerceIn(h0 + 3f, 24f)
     }
 
-    /** LP: 레코드 위젯과 같은 판 색 + 홈·광택, 라벨은 배경화면 색(병맛이면 왕눈이 라벨). label=라벨 글자 넣을지 */
-    private fun lp(cx: Float, cy: Float, d: Float, label: Boolean) {
-        val r = RectF(cx - d / 2, cy - d / 2, cx + d / 2, cy + d / 2)
-        val body = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = discColor }
-        c.drawCircle(cx, cy, if (quirky) d * 0.48f else d / 2, body)
-        ctx.getDrawable(if (quirky) R.drawable.vinyl_grooves_fun else R.drawable.vinyl_grooves)?.let {
-            it.setBounds(r.left.toInt(), r.top.toInt(), r.right.toInt(), r.bottom.toInt()); it.draw(c)
+    /** 오늘 남은 여유 시간(지금~막대 끝에서 남은 일정 시간 뺌), 시간 단위 반올림 */
+    private fun freeHours(timed: List<CalEvent>, h1: Float): Int {
+        var busy = 0f
+        for (e in timed) { val s = max(hourOf(e.beginMs), nowH); val t = min(hourOf(e.endMs), h1); if (t > s) busy += t - s }
+        return kotlin.math.round(max(0f, h1 - nowH - busy)).toInt()
+    }
+
+    /** 가로 막대 (+ 시각 눈금). x(h) 함수를 돌려줌 */
+    private fun hBar(l: Float, r: Float, y: Float, h: Float, timed: List<CalEvent>, h0: Float, h1: Float, ticks: Boolean): (Float) -> Float {
+        val x = { hh: Float -> l + (r - l) * ((hh - h0) / (h1 - h0)).coerceIn(0f, 1f) }
+        rr(l, y, r - l, h, h / 2, track)
+        for (e in timed) {
+            val x0 = x(hourOf(e.beginMs)); val x1 = max(x(hourOf(e.endMs)), x0 + h)
+            rr(x0, y, x1 - x0, h, h / 2, if (done(e)) a(e.color, 0x59) else solid(e.color))
         }
-        if (quirky) {
-            c.drawBitmap(LabelRenderer.draw(null, labelColor, true), null, r, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
-            return
+        if (ticks) {
+            var t = kotlin.math.ceil(h0 / 3f) * 3f; if (t <= h0) t += 3f
+            while (t < h1) { mid(t.toInt().toString(), x(t), y + h + 10f * k, p(9f, 500, sub, Paint.Align.CENTER)); t += 3f }
         }
-        val lr = d * 0.31f
-        c.drawCircle(cx, cy, lr, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = labelColor })
-        c.drawCircle(cx, cy, lr * 0.62f, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = lr * 0.03f; color = 0x40FFFFFF })
-        if (label) {
-            val today = LocalDate.now()
-            mid("SIDE A", cx, cy - lr * 0.45f, p(lr * 0.2f, BOLD, 0xE6FFFFFF.toInt(), Paint.Align.CENTER))
-            mid("${today.monthValue}.${today.dayOfMonth}", cx, cy + lr * 0.45f, p(lr * 0.26f, SERIF, 0xFFFFFFFF.toInt(), Paint.Align.CENTER))
-        }
-        c.drawCircle(cx, cy, d * 0.02f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF111111.toInt() })
+        return x
+    }
+
+    /** 지금 바늘. 병맛이면 바늘 끝이 지금 날씨 캐릭터 */
+    private fun needle(x: Float, y0: Float, y1: Float, vertical: Boolean = false) {
+        val pt = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = fg }
+        if (!vertical) c.drawRect(x - k, y0, x + k, y1, pt) else c.drawRect(y0, x - k, y1, x + k, pt)
+        val fun_ = if (quirky) Assets.get(ctx, WeatherStore.load(ctx).iconFun()) else null
+        if (fun_ != null) {
+            val s = 16f * k
+            val r = if (!vertical) RectF(x - s / 2, y0 - s + 3f * k, x + s / 2, y0 + 3f * k) else RectF(y0 - s + 2f * k, x - s / 2, y0 + 2f * k, x + s / 2)
+            c.drawBitmap(fun_, null, r, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+        } else if (!vertical) c.drawCircle(x, y0, 3.5f * k, pt) else c.drawCircle(y0, x, 3.5f * k, pt)
+    }
+
+    /** 다음 일정 블록: [색 막대] 남은 시간 / 제목(크게) / 시각. 블록 높이를 돌려줌 */
+    private fun nextBlock(e: CalEvent, x: Float, y: Float, maxW: Float, title: Float, barH: Float) {
+        rr(x, y, 4f * k, barH, 2f * k, solid(e.color))
+        val lx = x + 14f * k
+        top((if (e.day == today) "다음 · " else "") + rel(e), lx, y - k, p(11f * title / 22f + 0.5f, 700, solid(e.color)))
+        val np = p(title, 800, fg)
+        top(ell(e.title, np, maxW - 14f * k), lx, y + 15f * k * title / 22f, np)
+        top(if (e.day == today) span(e) else (e.start ?: "종일"), lx, y + 45f * k * title / 22f, p(12f * title / 22f + 0.5f, 500, sub))
     }
 
     fun draw(events: List<CalEvent>, permission: Boolean) {
-        if (events.isEmpty()) { empty(permission); return }
-        if (design == TICKET) ticket(events) else setlist(events)
-    }
+        val todays = events.filter { it.day == today }
+        val timed = todays.filter { !it.allDay }
+        val upcoming = events.filter { !done(it) && !(it.allDay && it.day == today) }   // 다음 일정 후보
+        val next = upcoming.firstOrNull()
+        val after = upcoming.drop(1)
+        val tomorrow = events.filter { it.day == today.plusDays(1) }
+        val (h0, h1) = range(timed)
+        val emptyMsg = if (!permission) "눌러서 캘린더 권한 허용" else "오늘 일정 없음 · 여유로운 하루"
+        val headRight = if (todays.isEmpty()) "일정 없음" else "일정 ${todays.size} · 여유 ${freeHours(timed, h1)}시간"
+        val tomorrowS = if (tomorrow.isEmpty()) "내일 일정 없음" else "내일 · ${tomorrow[0].title}" + (if (tomorrow.size > 1) " 외 ${tomorrow.size - 1}" else "")
+        val wide = wd >= hd * 1.55f
 
-    /** 일정이 없을 때: 가운데 한 줄 (셋리스트면 LP, 병맛이면 스티커와 함께) */
-    private fun empty(permission: Boolean) {
-        val msg = if (!permission) "눌러서 캘린더 권한 허용" else if (design == TICKET) "예정된 티켓이 없어요" else "오늘은 쉬는 트랙 ♪"
-        val sz = small(min(H * 0.15f, W * 0.07f))
-        if (design == SETLIST) { c.save(); c.clipRect(0f, 0f, W, H); lp(if (W > H * 1.55f) -H * 0.15f else W / 2, if (W > H * 1.55f) H / 2 else -W * 0.05f, if (W > H * 1.55f) H * 1.3f else W * 0.8f, false); c.restore() }
-        val pt = p(sz, BOLD, sub, Paint.Align.CENTER)
-        val cx = if (design == SETLIST && W > H * 1.55f) W * 0.6f else W / 2
-        val cy = if (design == SETLIST && W <= H * 1.55f) H * 0.7f else H / 2
-        TextWrap.wrap(msg, pt, W * 0.6f, 2).forEachIndexed { i, l -> mid(l, cx, cy + i * sz * 1.4f, pt) }
-    }
+        if (wide && hd < 110f) {                              // ---- 4×1 ----
+            val pd = 16f * k
+            val ty = pd + 2f * k
+            val x = hBar(pd, W - pd, ty, 10f * k, timed, h0, h1, false)
+            needle(x(nowH), ty - 5f * k, ty + 15f * k)
+            val y = H - pd - 12f * k
+            if (next == null) { mid(emptyMsg, pd, y, p(14f, 700, sub)); return }
+            rr(pd, y - 15f * k, 4f * k, 30f * k, 2f * k, solid(next.color))
+            mid(rel(next), pd + 13f * k, y - 7f * k, p(10f, 700, solid(next.color)))
+            val right0 = W - pd - 80f * k
+            val tp = p(13f, 600, fg, Paint.Align.RIGHT)
+            mid(next.start ?: "종일", right0, y, tp)
+            mid(ell(next.title, p(17f, 800, fg), right0 - tp.measureText(next.start ?: "종일") - 12f * k - (pd + 13f * k)), pd + 13f * k, y + 8f * k, p(17f, 800, fg))
+            c.drawRect(W - pd - 70f * k, y - 12f * k, W - pd - 69f * k, y + 12f * k, Paint().apply { color = line })
+            val f = after.firstOrNull()
+            if (f != null) {
+                mid("이후 " + (if (f.day == today) (f.start ?: "종일") else dayName(f.day)), W - pd, y - 6f * k, p(10f, 500, sub, Paint.Align.RIGHT))
+                mid(ell(f.title, p(11f, 700, fg), 62f * k), W - pd, y + 8f * k, p(11f, 700, fg, Paint.Align.RIGHT))
+            } else mid("이후 없음", W - pd, y, p(10f, 500, sub, Paint.Align.RIGHT))
+            return
+        }
 
-    // ================= 셋리스트 =================
-    private fun setlist(events: List<CalEvent>) {
-        val short = W >= H * 1.55f && hDp < 110f
-        val wide = W >= H * 1.55f
-        val next = events[0]
-        if (short) {                                  // ---- 4×1: [LP 조금] NEXT TRACK / 제목 …… 시각 / 02 03 ----
-            val d = H * 1.55f; val cx = H * 0.1f
-            c.save(); c.clipRect(0f, 0f, W, H); lp(cx, H / 2, d, false); c.restore()
-            val l = cx + d / 2 + H * 0.2f; val r = W - H * 0.3f
-            val lb = small(H * 0.105f)
-            val lp_ = p(lb, BOLD, accent)
-            mid("NEXT TRACK", l, H * 0.26f, lp_)
-            eq(l + lp_.measureText("NEXT TRACK") + H * 0.08f, H * 0.2f, H * 0.11f, accent)
-            mid(rel(next), r, H * 0.26f, p(lb, BOLD, accent, Paint.Align.RIGHT))
-            val timeS = next.start ?: "종일"
-            val tp = p(H * 0.2f, SERIF, fg, Paint.Align.RIGHT)
-            mid(timeS, r, H * 0.53f, tp)
-            val np = p(H * 0.23f, BLACK, fg)
-            mid(ell(next.title, np, r - l - tp.measureText(timeS) - H * 0.2f), l, H * 0.53f, np)
-            var x = l; val sz = small(H * 0.12f)
-            events.drop(1).take(2).forEachIndexed { i, e ->
-                val num = "0${i + 2}"; val npp = p(sz, SERIF, sub)
-                mid(num, x, H * 0.8f, npp); x += npp.measureText(num) + sz * 0.4f
-                val tp2 = p(sz, MED, sub)
-                val t = ell((if (e.day == LocalDate.now()) (e.start ?: "종일") else dayName(e.day)) + " " + e.title, tp2, if (i == 0) (r - x) * 0.55f else r - x)
-                mid(t, x, H * 0.8f, tp2); x += tp2.measureText(t) + sz * 1.2f
+        if (wide) {                                           // ---- 4×2 ----
+            val pd = 20f * k
+            top("오늘", pd, pd - k, p(11f, 700, sub))
+            mid(headRight, W - pd, pd + 6f * k, p(11f, 600, sub, Paint.Align.RIGHT))
+            val ty = pd + 24f * k
+            val x = hBar(pd, W - pd, ty, 16f * k, timed, h0, h1, true)
+            needle(x(nowH), ty - 6f * k, ty + 22f * k)
+            val y = ty + 52f * k
+            if (next == null) { mid(emptyMsg, pd, y + 24f * k, p(16f, 800, sub)); mid(tomorrowS, pd, y + 50f * k, p(11f, 600, sub)); return }
+            val rx = W - pd - 118f * k
+            nextBlock(next, pd, y, rx - 14f * k - pd - 8f * k, 22f, 62f * k)
+            c.drawRect(rx - 14f * k, y + 2f * k, rx - 13f * k, y + 60f * k, Paint().apply { color = line })
+            val rows = ArrayList<Triple<String, String, Int>>()
+            after.filter { it.day == today }.take(2).forEach { rows += Triple(it.title, it.start ?: "종일", it.color) }
+            if (rows.size < 2 && tomorrow.isNotEmpty() && next.day == today)
+                rows += Triple("내일 · " + tomorrow[0].title, if (tomorrow.size > 1) "외 ${tomorrow.size - 1}" else (tomorrow[0].start ?: "종일"), tomorrow[0].color)
+            if (rows.isEmpty()) rows += Triple("이후 일정 없음", "", sub)
+            var yy = y
+            for ((t, m, col) in rows.take(2)) {
+                dot(rx + 3f * k, yy + 9f * k, 3f * k, solid(col))
+                val mp = p(11f, 500, sub, Paint.Align.RIGHT)
+                mid(m, W - pd, yy + 9f * k, mp)
+                top(ell(t, p(12f, 700, fg), W - pd - mp.measureText(m) - 6f * k - (rx + 12f * k)), rx + 12f * k, yy + k, p(12f, 700, fg))
+                yy += 34f * k
             }
             return
         }
-        val l: Float; val r: Float; var y: Float; val u: Float
-        if (wide) {                                   // ---- 4×2: 왼쪽에 LP가 걸쳐 있고 오른쪽에 트랙리스트 ----
-            val d = H * 1.35f; val cx = -d * 0.2f
-            c.save(); c.clipRect(0f, 0f, W, H); lp(cx, H / 2, d, false); c.restore()
-            l = cx + d / 2 + H * 0.16f; r = W - H * 0.12f; u = H * 0.085f; y = H * 0.16f
-        } else {                                      // ---- 2×4·2×2: 위에 LP(라벨에 SIDE A·날짜), 아래 트랙리스트 ----
-            val d = min(W * 0.92f, H * 0.5f); val cy = d * 0.28f
-            c.save(); c.clipRect(0f, 0f, W, H); lp(W / 2, cy, d, true); c.restore()
-            l = W * 0.1f; r = W * 0.9f; u = min(W * 0.075f, H * 0.06f); y = cy + d / 2 + u * 1.3f
-        }
-        mid("오늘의 셋리스트", l, y, p(small(u * 0.8f), BOLD, sub)); y += u * 1.55f
-        var lastDay = LocalDate.now(); var n = 1
-        val showEq = wDp >= 250f
-        for (e in events) {
-            if (e.day != lastDay) {                   // SIDE B · 내일 ───────
-                if (y > H - u * 2.2f) break
-                y += u * 0.15f
-                val side = "SIDE ${'A' + java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), e.day).toInt().coerceIn(1, 25)} · ${dayName(e.day)}"
-                val sp = p(small(u * 0.72f), BOLD, sub)
-                mid(side, l, y, sp)
-                val tw = sp.measureText(side)
-                c.drawRect(l + tw + u * 0.5f, y, r, y + max(1f, k), Paint().apply { color = alpha(sub, 0x40) })
-                y += u * 1.35f; lastDay = e.day
+
+        if (hd >= wd * 1.5f) {                                // ---- 2×4: 세로 막대 ----
+            val pd = 18f * k
+            top("오늘", pd, pd - k, p(11f, 700, sub))
+            mid(if (todays.isEmpty()) "일정 없음" else "일정 ${todays.size}", W - pd, pd + 6f * k, p(11f, 600, sub, Paint.Align.RIGHT))
+            val t0 = pd + 30f * k; val b0 = H - pd - 34f * k; val lx = pd + 6f * k
+            val yOf = { hh: Float -> t0 + (b0 - t0) * ((hh - h0) / (h1 - h0)).coerceIn(0f, 1f) }
+            rr(lx, t0, 12f * k, b0 - t0, 6f * k, track)
+            var t = kotlin.math.ceil(h0 / 3f) * 3f; if (t <= h0) t += 3f
+            while (t < h1) { mid(t.toInt().toString(), lx - 6f * k, yOf(t), p(8f, 500, sub, Paint.Align.RIGHT)); t += 3f }
+            val ny = yOf(nowH)
+            var lastY = -999f
+            for (e in timed) {
+                val y0 = yOf(hourOf(e.beginMs)); val y1 = max(yOf(hourOf(e.endMs)), y0 + 12f * k)
+                rr(lx, y0, 12f * k, y1 - y0, 6f * k, if (done(e)) a(e.color, 0x59) else solid(e.color))
+                var ly = max(y0 + 2f * k, lastY + 34f * k)
+                if (ly < ny + 6f * k && ly + 30f * k > ny - 6f * k) ly = if (hourOf(e.beginMs) < nowH) min(ly, ny - 34f * k) else ny + 8f * k
+                if (ly + 28f * k > b0 + 10f * k) break
+                val isN = e == next
+                top(if (isN) "다음 · " + rel(e) else (e.start ?: ""), lx + 24f * k, ly, p(10f, if (isN) 700 else 500, if (isN) solid(e.color) else sub))
+                val np = p(if (isN) 15f else 13f, if (isN) 800 else 700, if (done(e)) sub else fg)
+                top(ell(e.title, np, W - lx - 24f * k - pd), lx + 24f * k, ly + 13f * k, np)
+                lastY = ly
             }
-            if (y > H - u * 0.9f) break
-            val isNext = n == 1
-            if (isNext) rr(l - u * 0.45f, y - u * 0.95f, r - l + u * 0.9f, u * 1.9f, u * 0.55f, alpha(accent, 0x24))
-            mid("%02d".format(n), l, y, p(u * 0.95f, SERIF, if (isNext) accent else sub))
-            val tx = l + u * 1.75f
-            // 넓으면 다음 곡에 남은 시간까지 (좁으면 제목이 먼저 보이게 시각만)
-            val tm = if (isNext && showEq && !next.allDay && rel(next).endsWith("후")) "${e.start} · ${rel(e)}" else (e.start ?: "종일")
-            val tmp = p(u * 0.85f, if (isNext) BOLD else MED, if (isNext) accent else sub, Paint.Align.RIGHT)
-            mid(tm, r, y, tmp)
-            var mw = tmp.measureText(tm)
-            if (isNext && showEq) { eq(r - mw - u * 1.15f, y - u * 0.42f, u * 0.8f, accent); mw += u * 1.35f }
-            val np = p(u, if (isNext) BLACK else BOLD, fg)
-            mid(ell(e.title, np, r - tx - mw - u * 0.5f), tx, y, np)
-            y += u * 1.75f; n++
-        }
-    }
-
-    // ================= 티켓 =================
-    /** 입장권 모양: 둥근 모서리 + 절취선 자리 양쪽 반원 홈 (가로형은 위·아래, 세로형은 왼·오른쪽) */
-    private fun ticketPath(l: Float, t: Float, w: Float, h: Float, at: Float, vertical: Boolean): Path {
-        val nr = min(w, h) * 0.09f; val r = min(w, h) * 0.08f
-        val path = Path().apply { addRoundRect(RectF(l, t, l + w, t + h), r, r, Path.Direction.CW) }
-        val notches = Path().apply {
-            if (!vertical) { addCircle(at, t, nr, Path.Direction.CW); addCircle(at, t + h, nr, Path.Direction.CW) }
-            else { addCircle(l, at, nr, Path.Direction.CW); addCircle(l + w, at, nr, Path.Direction.CW) }
-        }
-        path.op(notches, Path.Op.DIFFERENCE)
-        return path
-    }
-
-    private fun barcode(l: Float, t: Float, w: Float, h: Float) {
-        val pt = Paint().apply { color = alpha(INK, 0xCC) }
-        var x = l; var i = 0
-        val bars = intArrayOf(1, 2, 1, 3, 1, 1, 2); val gaps = intArrayOf(1, 1, 2, 1)
-        while (x < l + w) { val bw = bars[i % 7] * w / 70f; c.drawRect(x, t, min(x + bw, l + w), t + h, pt); x += bw + gaps[i % 4] * w / 70f; i++ }
-    }
-
-    private fun chip(s: String, cx: Float, cy: Float, size: Float, col: Int, center: Boolean) {
-        val pt = p(size, BOLD, col or 0xFF000000.toInt(), Paint.Align.CENTER)
-        val w = pt.measureText(s) + size * 1.1f; val h = size * 1.7f
-        val l = if (center) cx - w / 2 else cx - w
-        rr(l, cy - h / 2, w, h, h / 2, alpha(col, 0x2E))
-        mid(s, l + w / 2, cy, pt)
-    }
-
-    private fun stamp(cx: Float, cy: Float, size: Float) {
-        if (!quirky) return
-        Assets.get(ctx, R.drawable.st_letsgo)?.let {
-            c.save(); c.rotate(12f, cx, cy)
-            c.drawBitmap(it, null, RectF(cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2), Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
-            c.restore()
-        }
-    }
-
-    private fun ticket(events: List<CalEvent>) {
-        val e = events[0]
-        val paper = if (quirky) 0xFFFFE9A8.toInt() else 0xFFFFF6E6.toInt()
-        val soft = 0xFF857868.toInt()
-        val short = W >= H * 1.55f && hDp < 110f
-        val wide = W >= H * 1.55f
-        if (short || wide) {
-            val pad = if (short) H * 0.12f else H * 0.08f
-            val tl = pad; val tt = pad; val tw = W - pad * 2; val th = if (short) H - pad * 2 else H * 0.55f
-            val stub = tl + tw * 0.72f
-            val path = ticketPath(tl, tt, tw, th, stub, false)
-            c.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = paper; setShadowLayer(th * 0.08f, 0f, th * 0.03f, 0x33000000) })
-            c.save(); c.clipPath(path); c.drawRect(tl, tt, tl + th * 0.07f, tt + th, Paint().apply { color = e.color or 0xFF000000.toInt() }); c.restore()
-            c.drawLine(stub, tt + th * 0.14f, stub, tt + th * 0.86f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = soft; strokeWidth = max(1f, k * 1.2f); pathEffect = android.graphics.DashPathEffect(floatArrayOf(th * 0.04f, th * 0.05f), 0f) })
-            val l = tl + th * 0.22f
-            mid("ADMIT ONE · 다음 일정", l, tt + th * 0.21f, p(small(th * 0.085f), BOLD, soft))
-            mid(ell(e.title, p(th * 0.21f, BLACK, INK), stub - l - th * 0.12f), l, tt + th * 0.48f, p(th * 0.21f, BLACK, INK))
-            mid(span(e), l, tt + th * 0.76f, p(small(th * 0.095f), MED, soft))
-            val sc = stub + (tl + tw - stub) / 2
-            mid(e.start ?: "종일", sc, tt + th * (if (short) 0.4f else 0.34f), p(th * 0.22f, SERIF, INK, Paint.Align.CENTER))
-            chip(rel(e), sc, tt + th * (if (short) 0.7f else 0.58f), small(th * 0.085f), e.color, true)
-            if (!short) barcode(stub + (tl + tw - stub) * 0.18f, tt + th * 0.74f, (tl + tw - stub) * 0.64f, th * 0.13f)
-            stamp(stub - th * 0.23f, tt + th * 0.17f, th * 0.42f)
-            if (short) return
-            // 아래: 다음 일정들 두 칸 × 두 줄
-            val top0 = tt + th + H * 0.07f; val uu = H * 0.072f; val cw = tw / 2
-            events.drop(1).take(4).forEachIndexed { i, ev ->
-                val x = tl + (i % 2) * cw + (if (i % 2 == 1) uu * 0.6f else 0f)
-                val y = top0 + (i / 2) * uu * 1.85f + uu * 0.6f
-                rr(x, y - uu * 0.6f, uu * 0.22f, uu * 1.2f, uu * 0.11f, ev.color or 0xFF000000.toInt())
-                val m = if (ev.day == LocalDate.now()) (ev.start ?: "종일") else dayName(ev.day) + (ev.start?.let { " $it" } ?: "")
-                val mp = p(small(uu * 0.82f), MED, sub, Paint.Align.RIGHT)
-                val right = x + cw - uu * (if (i % 2 == 1) 0.6f else 1.2f)
-                mid(m, right, y, mp)
-                val np = p(small(uu), BOLD, fg)
-                mid(ell(ev.title, np, right - mp.measureText(m) - uu * 0.6f - (x + uu * 0.6f)), x + uu * 0.6f, y, np)
-            }
+            needle(ny, lx - 5f * k, lx + 17f * k, vertical = true)
+            if (timed.isEmpty()) mid(emptyMsg, lx + 24f * k, (t0 + b0) / 2, p(12f, 700, sub))
+            c.drawRect(pd, H - pd - 22f * k, W - pd, H - pd - 21f * k, Paint().apply { color = line })
+            mid(ell(tomorrowS, p(11f, 600, sub), W - pd * 2), pd, H - pd - 8f * k, p(11f, 600, sub))
             return
         }
-        // ---- 세로(2×4·2×2): 위 = 본권, 아래 = 스텁(가로 절취선), 그 아래 목록 ----
-        val pad = W * 0.08f
-        val tl = pad; val tt = pad; val tw = W - pad * 2; val th = min(H * 0.46f, W * 1.05f)
-        val stub = tt + th * 0.7f
-        val path = ticketPath(tl, tt, tw, th, stub, true)
-        c.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = paper; setShadowLayer(tw * 0.05f, 0f, tw * 0.02f, 0x33000000) })
-        c.save(); c.clipPath(path); c.drawRect(tl, tt, tl + tw, tt + th * 0.045f, Paint().apply { color = e.color or 0xFF000000.toInt() }); c.restore()
-        c.drawLine(tl + tw * 0.1f, stub, tl + tw * 0.9f, stub, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = soft; strokeWidth = max(1f, k * 1.2f); pathEffect = android.graphics.DashPathEffect(floatArrayOf(tw * 0.035f, tw * 0.04f), 0f) })
-        val l = tl + tw * 0.1f
-        mid("ADMIT ONE · 다음 일정", l, tt + th * 0.16f, p(small(tw * 0.06f), BOLD, soft))
-        val tp = p(tw * 0.13f, BLACK, INK)
-        val lines = TextWrap.wrap(e.title, tp, tw * 0.8f - (if (quirky) tw * 0.15f else 0f), 2)
-        val ty0 = tt + th * (if (lines.size > 1) 0.3f else 0.34f)
-        lines.forEachIndexed { i, s -> mid(s, l, ty0 + i * tw * 0.16f, tp) }
-        mid(span(e), l, ty0 + lines.size * tw * 0.16f, p(small(tw * 0.065f), MED, soft))
-        val sy = stub + (tt + th - stub) / 2
-        mid(e.start ?: "종일", l, sy, p(tw * 0.14f, SERIF, INK))
-        chip(rel(e), tl + tw * 0.9f, sy, small(tw * 0.06f), e.color, false)
-        stamp(tl + tw - tw * 0.14f, tt + tw * 0.15f, tw * 0.3f)
-        var y = tt + th + W * 0.1f
-        val uu = min(W * 0.075f, H * 0.06f)
-        for (ev in events.drop(1)) {
-            if (y + uu * 2.2f > H - pad * 0.5f) break
-            rr(tl, y, uu * 0.22f, uu * 2.2f, uu * 0.11f, ev.color or 0xFF000000.toInt())
-            val np = p(small(uu), BOLD, fg)
-            top(ell(ev.title, np, tw - uu), tl + uu * 0.6f, y - uu * 0.05f, np)
-            top(whenS(ev), tl + uu * 0.6f, y + uu * 1.25f, p(small(uu * 0.8f), MED, sub))
-            y += uu * 3f
-        }
+
+        // ---- 2×2 ----
+        val pd = 16f * k
+        top(if (todays.isEmpty()) "오늘 · 일정 없음" else "오늘 · 일정 ${todays.size}", pd, pd - 3f * k, p(10f, 700, sub))
+        val ty = pd + 26f * k
+        val x = hBar(pd, W - pd, ty, 12f * k, timed, h0, h1, false)
+        needle(x(nowH), ty - 5f * k, ty + 17f * k)
+        val y = ty + 30f * k
+        if (next == null) { mid(emptyMsg, pd, y + 24f * k, p(13f, 800, sub)); return }
+        nextBlock(next, pd, y, W - pd * 2, 18f, 56f * k)
+        val f = after.firstOrNull()
+        c.drawRect(pd, H - pd - 24f * k, W - pd, H - pd - 23f * k, Paint().apply { color = line })
+        if (f != null) {
+            dot(pd + 3f * k, H - pd - 9f * k, 3f * k, solid(f.color))
+            val m = if (f.day == today) (f.start ?: "종일") else dayName(f.day)
+            val mp = p(10f, 500, sub, Paint.Align.RIGHT)
+            mid(m, W - pd, H - pd - 9f * k, mp)
+            mid(ell(f.title, p(11f, 700, fg), W - pd - mp.measureText(m) - 6f * k - (pd + 12f * k)), pd + 12f * k, H - pd - 9f * k, p(11f, 700, fg))
+        } else mid(tomorrowS, pd, H - pd - 9f * k, p(11f, 600, sub))
     }
 }
 
@@ -391,21 +329,25 @@ class MemoScene(
 object MemoWidget {
     /** 미리보기용 예시 (실제 일정이 없거나 권한이 없을 때) */
     val SAMPLE: List<CalEvent> get() {
-        val now = System.currentTimeMillis(); val t = LocalDate.now()
+        // 오늘 12:00·14:00·19:30 + 내일 (지금 시각 기준으로 지난 것은 흐리게 보임)
+        val zone = ZoneId.systemDefault(); val t = LocalDate.now()
+        fun ev(title: String, h: Int, m: Int, mins: Int, col: Int, day: LocalDate = t): CalEvent {
+            val b = day.atTime(h, m).atZone(zone).toInstant().toEpochMilli(); val e = b + mins * 60_000L
+            val te = java.time.Instant.ofEpochMilli(e).atZone(zone)
+            return CalEvent(title, day, "%d:%02d".format(h, m), false, col, b, e, "%d:%02d".format(te.hour, te.minute))
+        }
         return listOf(
-            CalEvent("팀 주간 회의", t, "14:00", false, 0xFF4F7DF3.toInt(), now + 25 * 60_000L, now + 85 * 60_000L, "15:00"),
-            CalEvent("헬스장 PT", t, "19:30", false, 0xFF35B37E.toInt(), now + 6 * 3_600_000L, now + 7 * 3_600_000L, "20:30"),
+            ev("점심 약속", 12, 0, 60, 0xFFF2A33A.toInt()), ev("팀 주간 회의", 14, 0, 60, 0xFF4F7DF3.toInt()),
+            ev("헬스장 PT", 19, 30, 60, 0xFF35B37E.toInt()),
             CalEvent("엄마 생신", t.plusDays(1), null, true, 0xFFE35D6A.toInt()),
-            CalEvent("치과 예약", t.plusDays(1), "10:00", false, 0xFFF2A33A.toInt(), now + 20 * 3_600_000L, now + 21 * 3_600_000L, "11:00"),
-            CalEvent("가평 캠핑", t.plusDays(2), null, true, 0xFF35B37E.toInt())
+            ev("치과 예약", 10, 0, 60, 0xFFF2A33A.toInt(), t.plusDays(1))
         )
     }
 
     fun build(ctx: Context, style: WidgetStyle, id: Int?, wDp: Float, hDp: Float, events: List<CalEvent>, permission: Boolean): RemoteViews {
         val rv = RemoteViews(ctx.packageName, R.layout.widget_memo)
         Palette.applyBackground(rv, style)
-        val scene = MemoScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style),
-            style.quirky, style.design.coerceIn(1, MemoScene.DESIGN_NAMES.size), MusicWidget.discColor(style), Palette.label(ctx))
+        val scene = MemoScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style), style.quirky)
         scene.draw(events, permission)
         rv.setImageViewBitmap(R.id.memo_canvas, scene.bitmap)
         // 누르면 캘린더 앱. 권한이 없으면 꾸미기 화면(권한 버튼이 있음)

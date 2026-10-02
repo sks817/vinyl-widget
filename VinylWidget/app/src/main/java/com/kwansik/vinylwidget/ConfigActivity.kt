@@ -209,7 +209,7 @@ class ConfigActivity : Activity() {
             if (kind == Kind.WEATHER) body.addView(calendarCard())
         }
         if (KindConfig.isMusic(kind)) body.addView(playerCard())
-        if (kind == Kind.MEMO) { body.addView(designCard()); body.addView(memoCard()) }
+        if (kind == Kind.MEMO) body.addView(memoCard())
         body.addView(themeCard())
         body.addView(backgroundCard())
         body.addView(colorCard())

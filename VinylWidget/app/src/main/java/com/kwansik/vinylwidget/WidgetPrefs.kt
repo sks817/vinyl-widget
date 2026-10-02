@@ -69,7 +69,6 @@ object KindConfig {
     fun designs(k: Kind): Array<String>? = when (k) {
         Kind.WEATHER -> WeatherWidget.DESIGN_NAMES
         Kind.WEATHER_WIDE -> WeatherWidget.WIDE_DESIGN_NAMES
-        Kind.MEMO -> MemoScene.DESIGN_NAMES
         else -> null
     }
 
