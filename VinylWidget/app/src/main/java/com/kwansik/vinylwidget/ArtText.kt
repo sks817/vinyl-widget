@@ -3,12 +3,11 @@ package com.kwansik.vinylwidget
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import kotlin.math.max
 
 /**
  * 그림(풍경) 위에 얹는 글자.
  *  - 글자색: 사용자가 고른 색 > 병맛이면 흰색 > 하늘 밝기에 맞춘 색(밝은 낮=진한 글자, 밤·비=크림색)
- *  - 테두리 없이, 글자와 반대 밝기의 은은한 번짐(그림자)만. 병맛은 그림 선이 진하니 번짐을 조금 더 넓게
+ *  - 테두리·그림자 없이 깨끗한 글자만
  *  - 밝은 글자 뒤 그림은 각 디자인이 옅은 어둠막(scrim)으로 살짝 눌러 줌 (needsScrim)
  */
 class ArtText(
@@ -38,13 +37,7 @@ class ArtText(
 
     /** y = 글자 기준선(baseline) */
     fun draw(s: String, x: Float, y: Float, p: Paint) {
-        val light = light(p.color)
-        val q = Paint(p).apply {
-            val r = max(p.textSize * (if (quirky) 0.16f else 0.12f), 2f)
-            val shade = if (!light) 0x8CFFFFFF.toInt() else if (quirky) 0x80000000.toInt() else 0x66000000
-            setShadowLayer(r, 0f, p.textSize * 0.02f, shade)
-        }
-        c.drawText(s, x, y, q)
+        c.drawText(s, x, y, Paint(p).apply { clearShadowLayer() })
     }
 
     /** 위쪽 기준(top)에 그림 */

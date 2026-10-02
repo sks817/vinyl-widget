@@ -35,12 +35,9 @@ object Palette {
     /** 바탕 없이 배경화면 위에 쓸 때 쓰는 자동 색 (어두운 글자인지) */
     private fun onWallpaperDark(ctx: Context, s: WidgetStyle) = s.fg == AUTO && bgHidden(s) && wallpaperWantsDarkText(ctx)
 
-    /** 바탕 없이 그린 글자가 어떤 배경화면에서도 읽히도록 까는 옅은 그림자 색 (0 = 그림자 없음) */
-    fun shadow(ctx: Context, s: WidgetStyle): Int = when {
-        !bgHidden(s) -> 0
-        s.fg == AUTO -> if (wallpaperWantsDarkText(ctx)) 0x40FFFFFF else 0x59000000
-        else -> 0x40000000
-    }
+    /** 글자 그림자 색 (0 = 그림자 없음). 지저분해 보여서 이제 어디에도 그림자를 깔지 않음 */
+    @Suppress("UNUSED_PARAMETER")
+    fun shadow(ctx: Context, s: WidgetStyle): Int = 0
 
     /** 주 글자색 */
     fun text(ctx: Context, s: WidgetStyle): Int = when {

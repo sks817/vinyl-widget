@@ -11,8 +11,8 @@ android {
         applicationId = "com.kwansik.vinylwidget"
         minSdk = 31          // Android 12 이상 (폴드 기기는 모두 해당)
         targetSdk = 36       // 2026.8.31부터 Play 필수 기준
-        versionCode = 24
-        versionName = "3.2.1"
+        versionCode = 25
+        versionName = "3.2.2"
     }
     signingConfigs {
         // Play 업로드용 키 (저장소는 반드시 Private 유지, 이 파일과 upload.jks는 따로 백업)

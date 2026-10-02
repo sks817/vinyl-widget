@@ -64,7 +64,7 @@ class WeatherScene(
     private val SANS = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
     private val SANS_M = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     private val BROWN = 0xFF5A3214.toInt()
-    private val BROWN_SUB = 0xFF6A3E1A.toInt()
+    private val DEEP_BROWN = 0xFF3E2210.toInt()
 
     private enum class A { L, C, R }
 
@@ -124,7 +124,7 @@ class WeatherScene(
     }
 
     /** 아래 줄: 재생 버튼 3개와 같은 위치에 [기온] [날씨] [최저/최고] */
-    private fun bottomRow(d: WeatherData) {
+    private fun bottomRow(d: WeatherData, icon: Boolean = true) {
         val y = H - pad - row / 2
         val xs = FloatArray(3) { pad + (W - pad * 2) * (it + 0.5f) / 3f }
         val msg = d.message()
@@ -133,9 +133,9 @@ class WeatherScene(
         val t = d.tempText()
         val tSize = 19f * k
         val p = Paint().apply { textSize = tSize; typeface = SERIF }
-        val tw = p.measureText(t); val ic = row * 0.82f; val gap = tSize * 0.15f
+        val tw = p.measureText(t); val ic = if (icon) row * 0.82f else 0f; val gap = if (icon) tSize * 0.15f else 0f
         val start = xs[0] - (ic + gap + tw) / 2
-        wIcon(d, start + ic / 2, y, ic, accent)
+        if (icon) wIcon(d, start + ic / 2, y, ic, accent)
         textMid(t, start + ic + gap + tw / 2, y, tSize, SERIF, fg)
         textMid(d.cond(), xs[1], y, 14f * k, SANS_M, fg)
         textMid(d.rangeText().replace(" ", ""), xs[2], y, 13f * k, SANS_R, sub)
@@ -208,9 +208,9 @@ class WeatherScene(
                 val tent = Scenes.tent(lit, quirky)   // 낮엔 불 꺼진 텐트
                 val r = fitBottom(tent, box)
                 asset(tent, r)
-                // 텐트 천 위 글자: 기본은 갈색, 직접 고른 색이면 그 색
-                text(wk, r.centerX(), r.top + r.height() * 0.36f, r.width() * 0.055f, SANS_M, if (customFg) sub else BROWN_SUB, A.C)
-                text(md, r.centerX(), r.top + r.height() * 0.45f, r.width() * 0.19f, SERIF, if (customFg) fg else BROWN, A.C)
+                // 텐트 지붕 위쪽 깨끗한 천에 글자 (문·얼굴과 겹치지 않게). 기본은 진한 갈색, 직접 고른 색이면 그 색
+                text(wk, r.centerX(), r.top + r.height() * 0.28f, r.width() * 0.065f, SANS_M, if (customFg) sub else BROWN, A.C)
+                text(md, r.centerX(), r.top + r.height() * 0.37f, r.width() * 0.17f, SERIF, if (customFg) fg else DEEP_BROWN, A.C)
                 bottomRow(d)
             }
             3 -> { // 하늘 원: 재킷과 같은 규칙으로 날씨·시간에 따라 바뀜
@@ -225,7 +225,7 @@ class WeatherScene(
                 }
                 art.top(md, sq.centerX(), sq.top + D * 0.07f, ap(D * 0.27f, SERIF, art.main, Paint.Align.CENTER))
                 art.top(wk, sq.centerX(), sq.top + D * 0.35f, ap(D * 0.07f, SANS_M, art.sub, Paint.Align.CENTER))
-                bottomRow(d)
+                bottomRow(d, icon = false)                          // 원 안 하늘에 이미 해·구름이 있으니 아이콘 생략
             }
             4 -> { // 큰 날짜 + 작은 텐트: 도형 없이 글자 중심 (레코드판과 경쟁하지 않음)
                 text(md, areaL + areaW * 0.02f, sq.top, D * 0.42f, SERIF, fg)

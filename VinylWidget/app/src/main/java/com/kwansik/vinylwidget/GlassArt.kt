@@ -63,12 +63,14 @@ object GlassArt {
         }
         val y = r.top + s * 0.12f
         val x0 = r.left + max(rad * 0.75f, w * 0.06f)
+        // 길쭉한 1×4는 띠가 하늘 캐릭터를 덮지 않게 왼쪽 끝에만 짧게
+        val span = if (w > h * 2f) min(w * 0.6f, h * 1.1f) / w else 0.6f
         c.drawPath(Path().apply {
             moveTo(x0, y + s * 0.02f)
-            quadTo(r.left + w * 0.32f, y - s * 0.06f, r.left + w * 0.6f, y - s * 0.03f)
+            quadTo(r.left + w * span * 0.53f, y - s * 0.06f, r.left + w * span, y - s * 0.03f)
         }, band)
         band.alpha = 0x80
-        c.drawLine(r.left + w * 0.64f, y - s * 0.03f, r.left + w * 0.66f, y - s * 0.03f, band)
+        c.drawLine(r.left + w * (span + 0.04f * span / 0.6f), y - s * 0.03f, r.left + w * (span + 0.06f * span / 0.6f), y - s * 0.03f, band)
         c.restore()
 
         // 테두리 빛

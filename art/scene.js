@@ -44,6 +44,7 @@ function pine(x, base, h, col, snow, outline = false) {
   return s + `</g>`;
 }
 
+let PLAIN = false;   // 텐트 단독(날짜를 얹는 그림): 지붕 솔기 없이 깨끗한 천
 // 벨텐트: 원뿔 지붕 + 낮은 벽 + 꼭대기 폴. lit=안에서 불이 켜짐
 function bellTent(cx, base, w, p, lit, snow, uid, glow = true) {
   const h = w * 0.78, wallH = h * 0.26, roofBase = base - wallH, apex = base - h;
@@ -58,11 +59,13 @@ function bellTent(cx, base, w, p, lit, snow, uid, glow = true) {
   // 그림자
   s += `<ellipse cx="${cx}" cy="${base + h * 0.02}" rx="${w * 0.58}" ry="${h * 0.045}" fill="#000" opacity="${lit ? 0.18 : 0.12}"/>`;
   // 벽
-  s += `<path d="M${L} ${roofBase} L${R} ${roofBase} L${R - w * 0.01} ${base} L${L + w * 0.01} ${base} Z" fill="url(#${g})" ${OL(w * 0.014)}/>`;
+  s += `<path d="M${L} ${roofBase} L${R} ${roofBase} L${R - w * 0.01} ${base} L${L + w * 0.01} ${base} Z" fill="url(#${g})"/>`;
   // 지붕 (살짝 오목한 원뿔)
-  s += `<path d="M${cx} ${apex} Q${cx + w * 0.2} ${roofBase - h * 0.28} ${rr} ${roofBase} Q${cx} ${roofBase + h * 0.035} ${rl} ${roofBase} Q${cx - w * 0.2} ${roofBase - h * 0.28} ${cx} ${apex} Z" fill="url(#${g})" ${OL(w * 0.014)}/>`;
+  s += `<path d="M${cx} ${apex} Q${cx + w * 0.2} ${roofBase - h * 0.28} ${rr} ${roofBase} Q${cx} ${roofBase + h * 0.035} ${rl} ${roofBase} Q${cx - w * 0.2} ${roofBase - h * 0.28} ${cx} ${apex} Z" fill="url(#${g})"/>`;
+  // 병맛 윤곽선: 바깥 실루엣만 (지붕과 벽 사이 가로선 없음)
+  if (Q) s += `<path d="M${cx} ${apex} Q${cx + w * 0.2} ${roofBase - h * 0.28} ${rr} ${roofBase} L${R} ${roofBase} L${R - w * 0.01} ${base} L${L + w * 0.01} ${base} L${L} ${roofBase} L${rl} ${roofBase} Q${cx - w * 0.2} ${roofBase - h * 0.28} ${cx} ${apex} Z" fill="none" ${OL(w * 0.014)}/>`;
   // 지붕 솔기 (패널 라인)
-  for (const t of [-0.3, 0.3]) s += `<path d="M${cx} ${apex} Q${cx + w * t * 0.5} ${roofBase - h * 0.2} ${cx + w * t} ${roofBase + h * 0.01}" stroke="${p.canvasShade}" stroke-width="${w * 0.006}" fill="none" opacity=".9"/>`;
+  if (!PLAIN) for (const t of [-0.3, 0.3]) s += `<path d="M${cx} ${apex} Q${cx + w * t * 0.5} ${roofBase - h * 0.2} ${cx + w * t} ${roofBase + h * 0.01}" stroke="${p.canvasShade}" stroke-width="${w * 0.006}" fill="none" opacity=".9"/>`;
   // 처마 그림자 띠
   s += `<path d="M${rl} ${roofBase} Q${cx} ${roofBase + h * 0.035} ${rr} ${roofBase} L${R} ${roofBase + h * 0.03} Q${cx} ${roofBase + h * 0.06} ${L} ${roofBase + h * 0.03} Z" fill="#000" opacity=".08"/>`;
   // 불 켜진 텐트: 안쪽 랜턴 불빛 + 캔버스 천에 비치는 가재도구 그림자(간이침대, 의자, 테이블과 주전자, 매단 랜턴)
@@ -230,8 +233,9 @@ function scene(kind, night, fmt, quirky = false) {
   s += `<rect width="${W}" height="${H}" fill="url(#sky${id})"/>`;
 
   // 해·달 위치: 글자가 없는 쪽 (재킷=오른쪽 위, 원=오른쪽, 파노라마=가운데 오른쪽)
-  const sx = pa ? W * 0.37 : fmt === 'ci' ? W * 0.8 : W * 0.85, sy = pa ? H * 0.3 : fmt === 'ci' ? H * 0.4 : H * 0.15;
-  const cs = pa ? H * 0.5 : W * 0.26;          // 하늘 캐릭터 크기
+  // 파노라마는 위젯이 더 길쭉하면 위아래가 잘리므로 캐릭터를 조금 내리고 작게 (잘려도 안전한 위치)
+  const sx = pa ? W * 0.37 : fmt === 'ci' ? W * 0.8 : W * 0.85, sy = pa ? (Q ? H * 0.38 : H * 0.34) : fmt === 'ci' ? H * 0.4 : H * 0.15;
+  const cs = pa ? H * 0.42 : W * 0.26;          // 하늘 캐릭터 크기
   if (Q) {
     if (night && kind !== 'rain' && kind !== 'cloudy') s += stars(W, H, pa ? 120 : 70, 7, horizon * 0.85);
   } else if (night && kind !== 'rain') {
@@ -254,7 +258,7 @@ function scene(kind, night, fmt, quirky = false) {
   // 병맛: 하늘 캐릭터는 구름보다 앞에
   if (Q) {
     const name = kind === 'clear' ? (night ? 'clear_night' : 'clear_day') : kind === 'cloudy' ? (night ? 'partly_night' : 'cloudy') : kind === 'rain' ? 'rain' : (night ? 'clear_night' : 'cloudy');
-    s += charIcon(name, sx, pa ? H * 0.32 : sy + cs * 0.12, cs);
+    s += charIcon(name, sx, pa ? sy : sy + cs * 0.12, cs);
   }
   // 산 (먼 → 가까운, 대기원근)
   const farTop = horizon - (pa ? H * 0.12 : Q ? H * 0.11 : H * 0.17), farAmp = pa ? H * 0.1 : Q ? H * 0.07 : H * 0.12;
@@ -307,13 +311,14 @@ function scene(kind, night, fmt, quirky = false) {
 
 // 텐트 단독 (배경 투명). 2×2 '불 켜진 텐트'는 지붕·벽 위에 날짜를 씀 → 가랜드·모닥불 없이 깔끔하게
 function tentOnly(lit, fmt, quirky = false) {
-  Q = quirky;
+  Q = quirky; PLAIN = fmt === 'tent';
   const p = lit ? PAL.clear_n : PAL.clear_d;
   const big = fmt === 'tent';
   const W = big ? 560 : 320, H = big ? 350 : 200;
   const w = W * 0.86, base = H * 0.97;
   const t = bellTent(W / 2, base, w, p, lit, false, `t${lit}${fmt}${Q ? 'q' : ''}`, false);
   // 높이에 맞게 viewBox 조정 (꼭대기 폴까지)
+  PLAIN = false;
   const top = t.apex - t.h * 0.12;
   const s = t.svg + `<rect x="${W * 0.04}" y="${base - 1}" width="${W * 0.92}" height="${H * 0.025}" rx="${H * 0.0125}" fill="${lit ? '#7a5a34' : '#8aa86f'}" opacity=".7"/>`;
   return { W, H, svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 ${top} ${W} ${H - top + H * 0.03}" preserveAspectRatio="xMidYMax meet">${s}</svg>` };
