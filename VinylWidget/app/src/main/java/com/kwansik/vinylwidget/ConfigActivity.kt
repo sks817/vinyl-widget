@@ -289,16 +289,7 @@ class ConfigActivity : Activity() {
         return card
     }
 
-    /** 테이프 색: 크라프트지 + 파스텔 + 배경화면 색 */
-    private val tapePresets by lazy {
-        intArrayOf(
-            MemoWidget.DEFAULT_TAPE, 0xFFF7B7C4.toInt(), 0xFFF9D97A.toInt(), 0xFFA8DBC0.toInt(), 0xFFA9C8F0.toInt(),
-            0xFFC9B6F2.toInt(), getColor(android.R.color.system_accent1_200), getColor(android.R.color.system_accent3_200),
-            0xFFE8E4DC.toInt(), 0xFF6B6158.toInt()
-        ).map { it or 0xFF000000.toInt() }.toIntArray()
-    }
-
-    // ---- 일정 메모: 캘린더 권한 + 테이프 색 ----
+    // ---- 일정: 캘린더 권한 ----
     private lateinit var permBtn: TextView
     private fun memoCard(): View {
         val card = card("캘린더", "기기에 연결된 캘린더(구글·삼성 등)의 일정 제목과 시간만 읽어요. 저장하거나 보내지 않아요")
@@ -308,16 +299,12 @@ class ConfigActivity : Activity() {
             setOnClickListener { requestPermissions(arrayOf(android.Manifest.permission.READ_CALENDAR), 7) }
         }
         card.addView(permBtn, LinearLayout.LayoutParams(MATCH, dp(46)).apply { topMargin = dp(8) })
-        card.addView(caption("마스킹테이프 색").apply { setPadding(0, dp(14), 0, dp(2)) })
-        val sws = mutableListOf<View>()
-        card.addView(swatchGrid(tapePresets, sws) { c -> point = c; refreshAll(); renderPreview() })
         refreshers += {
             val ok = CalendarReader.hasPermission(this)
             permBtn.text = if (ok) "✓ 캘린더 권한 허용됨" else "캘린더 권한 허용하기"
             permBtn.isEnabled = !ok
             permBtn.setTextColor(if (ok) onSurfaceVar else onAccent)
             permBtn.background = if (ok) rounded(Color.TRANSPARENT, 22f, outline, 1) else rounded(accent, 22f)
-            sws.forEach { styleSwatch(it, it.tag as Int == point) }
         }
         return card
     }
@@ -334,7 +321,7 @@ class ConfigActivity : Activity() {
         val card = card("테마", null)
         card.addView(toggleRow("병맛 테마",
             if (music) "만화풍 레코드판·왕눈이 라벨 / 눈알이 도는 카세트"
-            else if (kind == Kind.MEMO) "오른쪽 위 모서리에 병맛 스티커 캐릭터가 붙어요" else "날씨 아이콘이 표정 있는 캐릭터로 바뀌어요",
+            else if (kind == Kind.MEMO) "병맛 스티커 캐릭터가 함께 붙어요" else "날씨 아이콘이 표정 있는 캐릭터로 바뀌어요",
             { quirky }) { quirky = it })
         return card
     }

@@ -32,7 +32,10 @@ import kotlin.math.max
 import kotlin.math.min
 
 /** 캘린더 일정 하나 */
-data class CalEvent(val title: String, val day: LocalDate, val start: String?, val allDay: Boolean, val color: Int)
+data class CalEvent(
+    val title: String, val day: LocalDate, val start: String?, val allDay: Boolean, val color: Int,
+    val beginMs: Long = 0L, val endMs: Long = 0L, val end: String? = null
+)
 
 /** 기기 캘린더(구글·삼성 등 기기에 연결된 모든 캘린더)에서 오늘부터 7일 일정 읽기 */
 object CalendarReader {
@@ -63,9 +66,14 @@ object CalendarReader {
                     // 종일 일정은 UTC 자정 기준으로 저장됨
                     val day = if (allDay) Instant.ofEpochMilli(b).atZone(ZoneOffset.UTC).toLocalDate()
                               else Instant.ofEpochMilli(b).atZone(zone).toLocalDate()
-                    if (day.isBefore(today)) { if (!allDay) out += CalEvent(title, today, "진행 중", false, c.getInt(4)); continue }
                     val t = Instant.ofEpochMilli(b).atZone(zone).toLocalTime()
-                    out += CalEvent(title, day, if (allDay) null else "%d:%02d".format(t.hour, t.minute), allDay, c.getInt(4))
+                    val te = Instant.ofEpochMilli(e).atZone(zone).toLocalTime()
+                    val endS = "%d:%02d".format(te.hour, te.minute)
+                    if (day.isBefore(today)) {                              // 어제 시작해 아직 진행 중
+                        if (!allDay) out += CalEvent(title, today, "%d:%02d".format(t.hour, t.minute), false, c.getInt(4), b, e, endS)
+                        continue
+                    }
+                    out += CalEvent(title, day, if (allDay) null else "%d:%02d".format(t.hour, t.minute), allDay, c.getInt(4), b, e, endS)
                 }
             }
         } catch (e: Exception) {
@@ -76,14 +84,15 @@ object CalendarReader {
 }
 
 /**
- * 일정 메모 그림. 다른 위젯과 같은 문법: 바탕은 위젯 공통 배경(없음·유리·검정·흰색·컬러, bg_image),
- * 글자색은 공통 자동 색(fg/sub).
- * '붙인 메모' 느낌은 왼쪽 위 모서리의 마스킹테이프 한 조각으로만. 병맛이면 오른쪽 위에 스티커 캐릭터
- * 날짜는 넣지 않음(날씨·날짜 위젯과 같이 쓰는 걸 전제). 크기에 따라: 4×1 = 일정 2줄×2칸, 4×2 = [오늘 | 다가오는 일정], 2×4·2×2 = 날짜별 목록
+ * 일정 위젯 그림 (Fantastical·iOS '다음 일정'·One UI 7 일정 위젯 문법):
+ *  - '다음 일정' 하나를 크게(제목 + 남은 시간 칩 + 시각), 나머지는 [색 막대 | 제목 / 시각] 두 줄 목록
+ *  - 바탕·글자색은 다른 위젯과 같은 공통 배경과 자동 색. 날짜는 넣지 않음(날씨·날짜 위젯과 같이 쓰는 걸 전제)
+ *  - 크기별: 4×1 = [다음 일정 크게 | 그다음 2개],  4×2 = [다음 일정 | 목록],  2×4·2×2 = 다음 일정 위, 목록 아래
+ *  - 병맛: 스티커 캐릭터 하나 (4×1은 자리가 없어 생략)
  */
 class MemoScene(
     private val ctx: Context, wDp: Float, hDp: Float,
-    private val fg: Int, private val sub: Int, private val tape: Int, private val quirky: Boolean
+    private val fg: Int, private val sub: Int, private val quirky: Boolean
 ) {
     val bitmap: Bitmap
     private val c: Canvas
@@ -99,11 +108,13 @@ class MemoScene(
         c = Canvas(bitmap); W = bitmap.width.toFloat(); H = bitmap.height.toFloat()
     }
 
+    private val BLACK = Typeface.create("sans-serif-black", Typeface.NORMAL)
     private val BOLD = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
     private val MED = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     private fun p(size: Float, tf: Typeface, col: Int, a: Paint.Align = Paint.Align.LEFT) =
         Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = tf; color = col; textAlign = a }
     private fun small(v: Float) = max(v, 11f * k)
+    private fun top(s: String, x: Float, y: Float, pt: Paint) = c.drawText(s, x, y - pt.fontMetrics.ascent, pt)
     private fun mid(s: String, x: Float, y: Float, pt: Paint) { val fm = pt.fontMetrics; c.drawText(s, x, y - (fm.ascent + fm.descent) / 2f, pt) }
     private fun ell(s: String, pt: Paint, maxW: Float): String {
         if (maxW <= 0f) return ""
@@ -111,162 +122,168 @@ class MemoScene(
         var t = s; while (t.isNotEmpty() && pt.measureText("$t…") > maxW) t = t.dropLast(1)
         return "$t…"
     }
-    private fun dayLabel(d: LocalDate): String {
-        val today = LocalDate.now()
-        return when (d) {
-            today -> "오늘"; today.plusDays(1) -> "내일"
-            else -> "${d.monthValue}.${d.dayOfMonth} ${d.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.KOREAN)}"
+    private fun line(x: Float, y: Float, w: Float, h: Float) =
+        c.drawRect(x, y, x + w, y + h, Paint().apply { color = (sub and 0x00FFFFFF) or (0x40 shl 24) })
+    private fun bar(x: Float, y: Float, h: Float, w: Float, col: Int) =
+        c.drawRoundRect(RectF(x, y, x + w, y + h), w / 2, w / 2, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = col or 0xFF000000.toInt() })
+
+    // ---- 시각 글자 ----
+    private fun dayName(d: LocalDate): String {
+        val t = LocalDate.now()
+        return when (d) { t -> "오늘"; t.plusDays(1) -> "내일"
+            else -> "${d.monthValue}.${d.dayOfMonth}(${d.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.KOREAN)})" }
+    }
+    /** 다음 일정 시각: 오늘이면 14:00 – 15:00, 다른 날이면 내일 10:00 / 10.4(토) · 종일 */
+    private fun span(e: CalEvent): String = when {
+        e.allDay -> "${dayName(e.day)} · 종일"
+        e.day == LocalDate.now() -> "${e.start} – ${e.end ?: ""}".trimEnd(' ', '–')
+        else -> "${dayName(e.day)} ${e.start}"
+    }
+    /** 목록 둘째 줄: 오늘 19:30 / 내일 · 종일 */
+    private fun whenS(e: CalEvent) = if (e.allDay) "${dayName(e.day)} · 종일" else "${dayName(e.day)} ${e.start}"
+    /** 오른쪽 짧은 표시(4×1): 오늘이면 시각, 다른 날이면 날짜 */
+    private fun shortS(e: CalEvent) = if (e.day == LocalDate.now()) (e.start ?: "종일") else dayName(e.day)
+    /** 남은 시간 칩: 진행 중 / 25분 후 / 3시간 후 / 내일 */
+    private fun rel(e: CalEvent): String {
+        val now = System.currentTimeMillis()
+        if (e.allDay) return if (e.day == LocalDate.now()) "오늘 종일" else dayName(e.day)
+        if (e.beginMs in 1..now && now < e.endMs) return "진행 중"
+        val min = (e.beginMs - now) / 60_000
+        return when {
+            e.beginMs <= 0L -> dayName(e.day)
+            min < 1 -> "곧 시작"
+            min < 60 -> "${min}분 후"
+            e.day == LocalDate.now() -> "${min / 60}시간 후"
+            else -> dayName(e.day)
         }
     }
 
-    /** 왼쪽 위 모서리에 비스듬히 붙인 마스킹테이프 (반투명, 옅은 사선 무늬) */
-    private fun tapeCorner() {
-        val tw = max(min(W, H) * 0.34f, 38f * k); val th = tw * 0.32f
-        c.save(); c.translate(tw * 0.3f, th * 0.7f); c.rotate(-35f)
-        val r = RectF(-tw / 2, -th / 2, tw / 2, th / 2)
-        c.drawRect(r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = (tape and 0x00FFFFFF) or (0xC8 shl 24) })
-        val sp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x26FFFFFF; strokeWidth = th * 0.16f }
-        var x = r.left; while (x < r.right) { c.drawLine(x, r.top, x + th * 0.5f, r.bottom, sp); x += th * 0.45f }
-        // 찢은 듯한 양 끝 (지그재그)
-        val cut = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0; xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR) }
-        for (ex in floatArrayOf(r.left, r.right)) {
-            val z = Path(); val n = 5; val d = th * 0.12f * (if (ex == r.left) 1 else -1)
-            z.moveTo(ex, r.top)
-            for (i in 0..n) z.lineTo(ex + if (i % 2 == 0) 0f else d, r.top + th * i / n)
-            z.lineTo(ex - d * 3, r.bottom); z.lineTo(ex - d * 3, r.top); z.close()
-            c.drawPath(z, cut)
-        }
-        c.restore()
+    /** 남은 시간 칩 (일정 색을 옅게 깐 알약 + 일정 색 글자). 칩 너비를 돌려줌 */
+    private fun chip(s: String, x: Float, y: Float, size: Float, col: Int): Float {
+        val pt = p(size, BOLD, col or 0xFF000000.toInt())
+        val w = pt.measureText(s) + size * 1.1f; val h = size * 1.7f
+        c.drawRoundRect(RectF(x, y - h / 2, x + w, y + h / 2), h / 2, h / 2, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = (col and 0x00FFFFFF) or (0x2E shl 24) })
+        mid(s, x + size * 0.55f, y, pt)
+        return w
     }
 
-    /** 병맛: 오른쪽 위에 스티커 캐릭터 (일정이 있으면 갓생, 없으면 오히려 좋아) */
-    private fun sticker(size: Float, busy: Boolean) {
+    /** 목록 한 줄: [색 막대] 제목 / 시각. 줄 높이를 돌려줌 */
+    private fun row(e: CalEvent, x: Float, y: Float, w: Float, size: Float): Float {
+        val bw = max(3f * k, size * 0.22f); val rh = size * 2.35f
+        bar(x, y, rh, bw, e.color)
+        val tx = x + bw + size * 0.6f
+        val tp = p(size, BOLD, fg)
+        top(ell(e.title, tp, w - (tx - x)), tx, y - size * 0.08f, tp)
+        top(whenS(e), tx, y + size * 1.3f, p(size * 0.8f, MED, sub))
+        return rh
+    }
+
+    /** 제목을 두 줄까지 (띄어쓰기에서 나눔) */
+    private fun twoLines(s: String, pt: Paint, maxW: Float): List<String> = TextWrap.wrap(s, pt, maxW, 2)
+
+    private fun sticker(x: Float, y: Float, size: Float) {
         if (!quirky) return
-        Assets.get(ctx, if (busy) R.drawable.st_godlife else R.drawable.st_ok)?.let {
-            c.save(); c.rotate(8f, W - size * 0.55f, size * 0.5f)
-            c.drawBitmap(it, null, RectF(W - size * 1.02f, -size * 0.02f, W - size * 0.02f, size * 0.98f), Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
-            c.restore()
+        Assets.get(ctx, R.drawable.st_godlife)?.let {
+            c.drawBitmap(it, null, RectF(x, y, x + size, y + size), Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
         }
-    }
-
-    /** 다가오는 날짜를 짧게: 내일 / 10.4(토) */
-    private fun shortDay(d: LocalDate): String =
-        if (d == LocalDate.now().plusDays(1)) "내일"
-        else "${d.monthValue}.${d.dayOfMonth}(${d.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.KOREAN)})"
-
-    /**
-     * 일정 한 줄. 오늘 일정 = [점] 14:00 제목,  다가오는 일정(showDay) = [점] 제목 …… 내일 10:00 (오른쪽 정렬, 흐리게).
-     * 제목이 늘 먼저 보이게: 자리가 모자라면 시각을 빼고 요일만 남김
-     */
-    private fun eventLine(e: CalEvent, x: Float, y: Float, maxW: Float, size: Float, showDay: Boolean = false) {
-        val dot = size * 0.26f
-        c.drawCircle(x + dot, y, dot, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = e.color or 0xFF000000.toInt() })
-        val tx = x + dot * 2 + size * 0.4f
-        val np = p(size, BOLD, fg)
-        val tp = p(size * 0.82f, MED, sub)
-        if (showDay) {
-            var meta = shortDay(e.day) + (e.start?.let { " $it" } ?: "")
-            val titleW = np.measureText(e.title)
-            if (tx + titleW + size * 0.5f + tp.measureText(meta) > x + maxW) meta = shortDay(e.day)
-            val metaW = tp.measureText(meta)
-            mid(ell(e.title, np, x + maxW - metaW - size * 0.5f - tx), tx, y, np)
-            mid(meta, x + maxW, y, Paint(tp).apply { textAlign = Paint.Align.RIGHT })
-            return
-        }
-        val whenS = e.start ?: "종일"
-        mid(whenS, tx, y, tp)
-        val nx = tx + tp.measureText(whenS) + size * 0.45f
-        mid(ell(e.title, np, x + maxW - nx), nx, y, np)
     }
 
     fun draw(events: List<CalEvent>, permission: Boolean) {
-        val today = LocalDate.now()
         val wide = W >= H * 1.55f
-        val empty = if (!permission) "눌러서 캘린더 권한 허용" else "다가오는 일정이 없어요"
-        tapeCorner()
+        if (events.isEmpty()) {                    // 일정이 없으면: 가운데에 한 줄 (+ 병맛 스티커)
+            val msg = if (!permission) "눌러서 캘린더 권한 허용" else if (quirky) "일정 없음! 오늘은 자유다" else "다가오는 일정이 없어요"
+            val sz = small(min(H * 0.16f, W * 0.07f))
+            if (quirky && !(wide && hDp < 110f)) sticker(W / 2 - min(W, H) * 0.2f, H / 2 - min(W, H) * 0.45f, min(W, H) * 0.4f)
+            val pt = p(sz, BOLD, sub, Paint.Align.CENTER)
+            TextWrap.wrap(msg, pt, W * 0.85f, 2).forEachIndexed { i, l -> mid(l, W / 2, H / 2 + (if (quirky && !(wide && hDp < 110f)) min(W, H) * 0.12f else 0f) + i * sz * 1.4f, pt) }
+            return
+        }
+        val next = events[0]; val rest = events.drop(1)
 
-        if (wide && hDp < 110f) {                 // ---- 4×1: 날짜 없이 일정만 두 줄 × 두 칸 (날짜는 날씨·날짜 위젯이 보여줌) ----
-            val h = H
-            val left = h * 0.5f
-            val right = W - h * (if (quirky) 0.66f else 0.3f)
-            val size = small(h * 0.17f)
-            if (events.isEmpty()) { mid(empty, left, h / 2, p(size, BOLD, sub)); sticker(h * 0.56f, false); return }
-            val shown = events.take(4)
-            val cols = if (shown.size > 2) 2 else 1
-            val gap = h * 0.3f
-            val colW = (right - left - gap * (cols - 1)) / cols
-            if (cols == 2) c.drawRect(left + colW + gap / 2, h * 0.26f, left + colW + gap / 2 + max(1f, k), h * 0.74f,
-                Paint().apply { color = (sub and 0x00FFFFFF) or (0x33 shl 24) })
-            shown.forEachIndexed { i, e ->
-                val col = i / 2; val row = i % 2
-                val rowsInCol = min(2, shown.size - col * 2)
-                val y = if (rowsInCol == 1) h / 2 else h * (0.35f + row * 0.31f)
-                eventLine(e, left + col * (colW + gap), y, colW, size, e.day != today)
+        if (wide && hDp < 110f) {                  // ---- 4×1 ----
+            val pd = H * 0.2f; val bw = H * 0.06f
+            bar(pd, pd, H - pd * 2, bw, next.color)
+            val tx = pd + bw + H * 0.16f; val split = W * 0.56f
+            val tp = p(H * 0.24f, BLACK, fg)
+            top(ell(next.title, tp, split - tx - H * 0.2f), tx, pd - H * 0.02f, tp)
+            val cs = small(H * 0.12f)
+            val cw = chip(rel(next), tx, H - pd - H * 0.1f, cs, next.color)
+            mid(span(next), tx + cw + H * 0.1f, H - pd - H * 0.1f, p(small(H * 0.13f), MED, sub))
+            if (rest.isNotEmpty()) {
+                line(split, pd, max(1f, k), H - pd * 2)
+                val sz = small(H * 0.13f); val right = W - H * 0.28f
+                rest.take(2).forEachIndexed { i, e ->
+                    val y = pd + (H - pd * 2) * (if (rest.size == 1) 0.5f else 0.25f + i * 0.5f)
+                    c.drawCircle(split + H * 0.25f, y, sz * 0.3f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = e.color or 0xFF000000.toInt() })
+                    val mp = p(sz * 0.9f, MED, sub, Paint.Align.RIGHT)
+                    val ms = shortS(e); mid(ms, right, y, mp)
+                    val np = p(sz, BOLD, fg)
+                    mid(ell(e.title, np, right - mp.measureText(ms) - H * 0.12f - (split + H * 0.42f)), split + H * 0.42f, y, np)
+                }
             }
-            sticker(h * 0.56f, true)
             return
         }
 
-        val unit: Float; val m: Float
-        if (wide) { unit = small(H * 0.085f); m = H * 0.1f } else { unit = small(min(W * 0.075f, H * 0.075f)); m = min(W, H) * 0.1f }
-        // 머리글 없이 바로 목록 (날짜는 날씨·날짜 위젯이 크게 보여줌). 첫 줄은 모서리 테이프 아래에서 시작
-        sticker(if (wide) H * 0.32f else min(W, H) * 0.28f, events.isNotEmpty())
-        var top = m * 1.2f + unit * 1.2f
-
-        if (wide) {                               // ---- 4×2: [오늘 | 다가오는 일정] ----
-            val left = m * 1.2f; val gap = unit * 1.2f
-            val colW = (W - left - m - gap) / 2
-            if (events.isEmpty()) { mid(empty, left, top + unit, p(unit, BOLD, sub)); return }
-            fun column(x: Float, title: String, list: List<CalEvent>, showDay: Boolean, none: String) {
-                mid(title, x, top, p(small(unit * 0.8f), BOLD, sub))
-                var y = top + unit * 1.55f
-                if (list.isEmpty()) mid(none, x, y, p(small(unit * 0.86f), MED, sub))
-                for (e in list) { if (y > H - m * 0.6f) break; eventLine(e, x, y, colW, unit, showDay); y += unit * 1.6f }
-            }
-            column(left, "오늘", events.filter { it.day == today }, false, "남은 일정 없음")
-            c.drawRect(left + colW + gap / 2, top - unit * 0.5f, left + colW + gap / 2 + max(1f, k), H - m * 0.8f,
-                Paint().apply { color = (sub and 0x00FFFFFF) or (0x33 shl 24) })
-            column(left + colW + gap, "다가오는 일정", events.filter { it.day != today }, true, "이번 주는 여유")
+        val pad = min(W, H) * 0.09f
+        if (wide) {                                // ---- 4×2 ----
+            val lw = W * 0.47f; val bw = max(4f * k, H * 0.03f)
+            bar(pad, pad, H - pad * 2, bw, next.color)
+            val tx = pad + bw + H * 0.08f
+            val tp = p(H * 0.13f, BLACK, fg)
+            val lines = twoLines(next.title, tp, lw - tx)
+            val lab = small(H * 0.07f); val cs = small(H * 0.068f)
+            val blockH = H * 0.13f + lines.size * H * 0.165f + H * 0.14f
+            val y0 = (H - blockH) / 2
+            top("다음 일정", tx, y0, p(lab, BOLD, sub))
+            lines.forEachIndexed { i, l -> top(l, tx, y0 + H * 0.13f + i * H * 0.165f, tp) }
+            val ty = y0 + H * 0.13f + lines.size * H * 0.165f + H * 0.07f
+            val cw = chip(rel(next), tx, ty, cs, next.color)
+            mid(span(next), tx + cw + H * 0.04f, ty, p(cs, MED, sub))
+            line(lw + H * 0.04f, pad, max(1f, k), H - pad * 2)
+            var y = pad; val rx = lw + H * 0.12f; val sz = small(H * 0.075f)
+            for (e in rest) { if (y + sz * 2.35f > H - pad + 2f) break; y += row(e, rx, y, W - pad - rx, sz) + sz * 0.75f }
+            if (rest.isEmpty()) mid("이후 일정 없음", rx, H / 2, p(sz, MED, sub))
+            sticker(W - H * 0.33f, H - H * 0.33f, H * 0.3f)
             return
         }
 
-        // ---- 2×4 / 2×2: 날짜별 목록 ----
-        val left = m * 1.2f; val maxW = W - left - m
-        if (events.isEmpty()) {
-            val ep = p(unit, BOLD, sub)
-            TextWrap.wrap(empty, ep, maxW, 3).forEachIndexed { i, l -> mid(l, left, top + unit + i * unit * 1.5f, ep) }
-            return
-        }
-        var lastDay: LocalDate? = null
-        for (e in events) {
-            if (e.day != lastDay) {
-                if (top > H - m - unit * 2f) break
-                if (lastDay != null) top += unit * 0.35f
-                mid(dayLabel(e.day), left, top, p(small(unit * 0.8f), BOLD, sub))
-                top += unit * 1.5f; lastDay = e.day
-            }
-            if (top > H - m * 0.7f) break
-            eventLine(e, left, top, maxW, unit)
-            top += unit * 1.6f
-        }
+        // ---- 2×4 / 2×2 ----
+        val u = min(W * 0.08f, H * 0.06f).coerceAtLeast(10f * k)
+        var y = pad
+        top("다음 일정", pad, y, p(small(u * 0.85f), BOLD, sub)); y += u * 1.6f
+        val tp = p(u * 1.55f, BLACK, fg)
+        val lines = twoLines(next.title, tp, W - pad * 2 - (if (quirky) W * 0.2f else 0f))
+        lines.forEachIndexed { i, l -> top(l, pad, y + i * u * 1.95f, tp) }
+        y += lines.size * u * 1.95f + u * 0.5f
+        val cs = small(u * 0.85f)
+        val cw = chip(rel(next), pad, y + u * 0.6f, cs, next.color)
+        mid(span(next), pad + cw + u * 0.5f, y + u * 0.6f, p(cs, MED, sub))
+        y += u * 2.2f
+        sticker(W - W * 0.3f, pad * 0.3f, W * 0.27f)
+        if (rest.isEmpty()) return
+        line(pad, y, W - pad * 2, max(1f, k)); y += u * 1.1f
+        for (e in rest) { if (y + u * 2.35f > H - pad + 2f) break; y += row(e, pad, y, W - pad * 2, u) + u * 0.8f }
     }
 }
 
-/** 일정 메모 위젯 (꾸미기는 다른 위젯과 같은 ConfigActivity, 테이프 색은 style.point) */
+/** 일정 위젯 (꾸미기는 다른 위젯과 같은 ConfigActivity) */
 object MemoWidget {
-    /** 테이프 기본색: 크라프트지 베이지 */
-    const val DEFAULT_TAPE = 0xFFE3C99A.toInt()
-    val SAMPLE get() = listOf(
-        CalEvent("팀 회의", LocalDate.now(), "14:00", false, 0xFF4F7DF3.toInt()),
-        CalEvent("헬스장", LocalDate.now(), "19:30", false, 0xFF35B37E.toInt()),
-        CalEvent("엄마 생신", LocalDate.now().plusDays(1), null, true, 0xFFE35D6A.toInt()),
-        CalEvent("치과 예약", LocalDate.now().plusDays(2), "10:00", false, 0xFFF2A33A.toInt())
-    )
+    /** 미리보기용 예시 (실제 일정이 없거나 권한이 없을 때) */
+    val SAMPLE: List<CalEvent> get() {
+        val now = System.currentTimeMillis(); val t = LocalDate.now()
+        return listOf(
+            CalEvent("팀 주간 회의", t, "14:00", false, 0xFF4F7DF3.toInt(), now + 25 * 60_000L, now + 85 * 60_000L, "15:00"),
+            CalEvent("헬스장 PT", t, "19:30", false, 0xFF35B37E.toInt(), now + 6 * 3_600_000L, now + 7 * 3_600_000L, "20:30"),
+            CalEvent("엄마 생신", t.plusDays(1), null, true, 0xFFE35D6A.toInt()),
+            CalEvent("치과 예약", t.plusDays(1), "10:00", false, 0xFFF2A33A.toInt(), now + 20 * 3_600_000L, now + 21 * 3_600_000L, "11:00"),
+            CalEvent("가평 캠핑", t.plusDays(2), null, true, 0xFF35B37E.toInt())
+        )
+    }
 
     fun build(ctx: Context, style: WidgetStyle, id: Int?, wDp: Float, hDp: Float, events: List<CalEvent>, permission: Boolean): RemoteViews {
         val rv = RemoteViews(ctx.packageName, R.layout.widget_memo)
         Palette.applyBackground(rv, style)
-        val scene = MemoScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), style.point, style.quirky)
+        val scene = MemoScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), style.quirky)
         scene.draw(events, permission)
         rv.setImageViewBitmap(R.id.memo_canvas, scene.bitmap)
         // 누르면 캘린더 앱. 권한이 없으면 꾸미기 화면(권한 버튼이 있음)

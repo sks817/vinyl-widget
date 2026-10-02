@@ -15,6 +15,6 @@
     <string name="weather_wide_desc">날씨와 시간에 따라 바뀌는 캠핑 풍경</string>
     <string name="sticker_label">병맛 스티커</string>
     <string name="sticker_desc">누르면 원하는 앱이 열리는 1×1 스티커</string>
-    <string name="memo_label">일정 메모지</string>
-    <string name="memo_desc">캘린더 일정을 메모지에 붙여 보여줘요 (4×1·4×2·2×4)</string>
+    <string name="memo_label">다음 일정</string>
+    <string name="memo_desc">다음 일정을 크게, 나머지는 목록으로 (4×1·4×2·2×4)</string>
 </resources>

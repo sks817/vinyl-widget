@@ -43,7 +43,7 @@ object KindConfig {
      * 날씨·날짜 위젯은 바탕 없이 그림과 글자만 배경화면 위에 (요즘 투명 위젯 문법)
      */
     fun default(k: Kind) = if (k == Kind.MEMO)          // 일정 메모: 레코드 위젯과 같은 유리 카드, 테이프는 크라프트지색
-        WidgetStyle(white = false, transparency = 0, fg = Palette.AUTO, design = 1, glass = true, point = MemoWidget.DEFAULT_TAPE)
+        WidgetStyle(white = false, transparency = 0, fg = Palette.AUTO, design = 1, glass = true)
     else WidgetStyle(
         white = false, transparency = if (isMusic(k)) 0 else 100, fg = Palette.AUTO, design = 1, glass = true,
         quirky = !isMusic(k)
@@ -58,7 +58,7 @@ object KindConfig {
     }
 
     fun name(k: Kind) = when (k) {
-        Kind.MUSIC -> "레코드"; Kind.MUSIC_WIDE -> "레코드 1×4"; Kind.WEATHER -> "날씨"; Kind.WEATHER_WIDE -> "날씨 1×4"; Kind.MEMO -> "일정 메모"
+        Kind.MUSIC -> "레코드"; Kind.MUSIC_WIDE -> "레코드 1×4"; Kind.WEATHER -> "날씨"; Kind.WEATHER_WIDE -> "날씨 1×4"; Kind.MEMO -> "다음 일정"
     }
     fun colorTitle(k: Kind) = if (isMusic(k)) "버튼·글자 색상" else if (k == Kind.MEMO) "글자 색상" else "글자·아이콘 색상"
     fun colorNote(k: Kind): String? =
