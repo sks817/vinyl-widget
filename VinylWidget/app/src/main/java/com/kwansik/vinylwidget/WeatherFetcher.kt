@@ -47,6 +47,22 @@ object WeatherFetcher {
         }
     }
 
+    /** 시간별 예보: 지금 다음 시각부터 3시간 간격으로 6칸 (4×2 위젯 아래 줄) */
+    private fun hourly(o: JSONObject): List<HourWx> = try {
+        val h = o.getJSONObject("hourly")
+        val times = h.getJSONArray("time"); val temps = h.getJSONArray("temperature_2m")
+        val codes = h.getJSONArray("weather_code"); val days = h.optJSONArray("is_day")
+        val now = java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Seoul"))
+        val start = (0 until times.length()).firstOrNull { java.time.LocalDateTime.parse(times.getString(it)).isAfter(now) } ?: times.length()
+        (start until times.length() step 3).take(6).mapNotNull { i ->
+            if (temps.isNull(i) || codes.isNull(i)) null
+            else HourWx(java.time.LocalDateTime.parse(times.getString(i)).hour, temps.getDouble(i), codes.getInt(i),
+                days?.optInt(i, 1) != 0)
+        }
+    } catch (e: Exception) {
+        Log.e("VinylWidget", "hourly", e); emptyList()
+    }
+
     fun fetch(ctx: Context) {
         val old = WeatherStore.load(ctx)
         val loc = LocationHelper.bestLocation(ctx)
@@ -62,7 +78,8 @@ object WeatherFetcher {
                 "https://api.open-meteo.com/v1/forecast?latitude=%.2f&longitude=%.2f" +
                     "&current=temperature_2m,weather_code,is_day" +
                     "&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset" +
-                    "&timezone=Asia%%2FSeoul&forecast_days=1", lat, lon))
+                    "&hourly=temperature_2m,weather_code,is_day" +
+                    "&timezone=Asia%%2FSeoul&forecast_days=2", lat, lon))
             val c = url.openConnection() as HttpURLConnection
             c.connectTimeout = 10_000
             c.readTimeout = 15_000
@@ -88,7 +105,7 @@ object WeatherFetcher {
             fun minutes(key: String): Int? = daily.optJSONArray(key)?.optString(0)
                 ?.substringAfter('T', "")?.split(":")?.let { p -> if (p.size >= 2) (p[0].toIntOrNull() ?: return@let null) * 60 + (p[1].toIntOrNull() ?: 0) else null }
             WeatherStore.save(ctx, WeatherData(temp, min, max, code, isDay, System.currentTimeMillis(), null,
-                minutes("sunrise"), minutes("sunset")))
+                minutes("sunrise"), minutes("sunset"), hourly(o)))
             updatePlace(ctx, lat, lon)
         } catch (e: Exception) {
             Log.e("VinylWidget", "open-meteo", e)

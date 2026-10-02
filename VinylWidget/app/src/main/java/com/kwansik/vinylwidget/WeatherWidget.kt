@@ -11,7 +11,7 @@ import android.widget.RemoteViews
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** 날씨·날짜 위젯. 그림을 누르면 기본 캘린더 앱, 아래 날씨 줄을 누르면 새로고침 */
+/** 날씨·날짜 위젯. 날짜(그림) 쪽을 누르면 기본 캘린더 앱, 날씨 쪽을 누르면 네이버 날씨 */
 object WeatherWidget {
 
     val DESIGN_NAMES = arrayOf("LP 재킷", "불 켜진 텐트", "하늘 원", "큰 날짜 + 텐트", "미니멀", "다이얼", "달력",
@@ -47,8 +47,14 @@ object WeatherWidget {
     }
 
     fun build(ctx: Context, style: WidgetStyle, d: WeatherData, wDp: Float = 170f, hDp: Float = 170f): RemoteViews {
-        val rv = RemoteViews(ctx.packageName, R.layout.weather_canvas)
         val design = style.design.coerceIn(1, DESIGN_NAMES.size)
+        if (BigScene.isBig(wDp, hDp)) {          // 옆으로 늘려 4×2가 되면 4×2 배치
+            val look = when (design) { 1, 3 -> BigScene.ART; 8, 9, 10 -> BigScene.CHAR; else -> BigScene.PLAIN }
+            return buildBig(ctx, style, d, wDp, hDp, look, design == CARD_2X2)
+        }
+        val rv = RemoteViews(ctx.packageName, R.layout.weather_canvas)
+        // 같은 레이아웃을 다시 쓸 때 4×2에서 바꿔 둔 높이가 남지 않게 원래 값(44dp)으로
+        rv.setViewLayoutHeight(R.id.w_tap_refresh, WidgetGeom.ROW, android.util.TypedValue.COMPLEX_UNIT_DIP)
         val ownCard = design == CARD_2X2
         Palette.applyBackground(rv, style, visible = !ownCard)
         val scene = WeatherScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style),
@@ -57,14 +63,18 @@ object WeatherWidget {
             style.artShadow && Palette.bgHidden(style), style.point, WidgetPrefs.alphaOf(style.transparency), style.bg)
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
-        rv.setOnClickPendingIntent(R.id.w_tap_refresh, refreshIntent(ctx))
+        rv.setOnClickPendingIntent(R.id.w_tap_refresh, weatherSiteIntent(ctx))
         return rv
     }
 
     /** 1×4 날씨 위젯 */
     fun buildWide(ctx: Context, style: WidgetStyle, d: WeatherData, wDp: Float, hDp: Float): RemoteViews {
-        val rv = RemoteViews(ctx.packageName, R.layout.weather_wide)
         val design = style.design.coerceIn(1, WIDE_DESIGN_NAMES.size)
+        if (BigScene.isBig(wDp, hDp)) {          // 아래로 늘려 4×2가 되면 4×2 배치
+            val look = when (design) { 1 -> BigScene.ART; 4, 5, 6 -> BigScene.CHAR; else -> BigScene.PLAIN }
+            return buildBig(ctx, style, d, wDp, hDp, look, design == CARD_1X4)
+        }
+        val rv = RemoteViews(ctx.packageName, R.layout.weather_wide)
         val simple = design == 3
         // 심플(검정/흰색): 슬라이더(배경 투명도)가 회색 카드에 적용되므로 위젯 기본 배경은 숨김.
         // 유리 배경이면 유리 카드가 곧 심플 카드
@@ -77,7 +87,7 @@ object WeatherWidget {
             style.corner, style.glassArt, style.artShadow && Palette.bgHidden(style), style.bg)
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
-        rv.setOnClickPendingIntent(R.id.w_tap_refresh, refreshIntent(ctx))
+        rv.setOnClickPendingIntent(R.id.w_tap_refresh, weatherSiteIntent(ctx))
         if (simple) {
             val h = hDp                                           // 카드 = 위젯 전체 높이(dp)
             val dip = android.util.TypedValue.COMPLEX_UNIT_DIP
@@ -99,6 +109,21 @@ object WeatherWidget {
         return rv
     }
 
+    /** 4×2: 위쪽(날짜·지금 날씨)을 누르면 캘린더, 아래 예보 줄을 누르면 네이버 날씨 */
+    private fun buildBig(ctx: Context, style: WidgetStyle, d: WeatherData, wDp: Float, hDp: Float, look: Int, cardDesign: Boolean): RemoteViews {
+        val rv = RemoteViews(ctx.packageName, R.layout.weather_canvas)
+        Palette.applyBackground(rv, style, visible = !cardDesign)
+        val scene = BigScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style),
+            style.quirky, style.fg != Palette.AUTO)
+        scene.draw(look, d, style.corner, style.glassArt, style.artShadow && Palette.bgHidden(style),
+            if (cardDesign) WidgetPrefs.alphaOf(style.transparency) else 0, style.bg)
+        rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
+        rv.setViewLayoutHeight(R.id.w_tap_refresh, BigScene.rowDp(hDp), android.util.TypedValue.COMPLEX_UNIT_DIP)
+        rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
+        rv.setOnClickPendingIntent(R.id.w_tap_refresh, weatherSiteIntent(ctx))
+        return rv
+    }
+
     /** 시계를 누르면 시계(알람) 앱 */
     private fun clockIntent(ctx: Context): PendingIntent {
         val i = Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -112,12 +137,12 @@ object WeatherWidget {
         return PendingIntent.getActivity(ctx, 21, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
-    private fun refreshIntent(ctx: Context): PendingIntent =
-        PendingIntent.getBroadcast(
-            ctx, 20,
-            Intent(ctx, WeatherWidgetProvider::class.java).setAction(WeatherWidgetProvider.ACTION_REFRESH),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
+    /** 날씨 쪽을 누르면 네이버 날씨(브라우저 또는 네이버 앱)에서 자세히 보기 */
+    private fun weatherSiteIntent(ctx: Context): PendingIntent {
+        val i = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(WEATHER_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return PendingIntent.getActivity(ctx, 23, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+    const val WEATHER_URL = "https://weather.naver.com/"
 
     /** 다음 일출 또는 일몰 1분 뒤에 한 번 다시 그림 → 텐트 불이 켜지고 꺼지는 시점을 맞춤 */
     private fun scheduleSunEvent(ctx: Context, d: WeatherData) {

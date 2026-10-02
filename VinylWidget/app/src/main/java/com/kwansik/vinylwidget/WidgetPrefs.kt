@@ -15,16 +15,20 @@ enum class Kind { MUSIC, WEATHER, MUSIC_WIDE, WEATHER_WIDE }
  * artShadow = 그림 그림자 (바탕 없음일 때만 그림)
  * quirky = 병맛 테마 (날씨: 캐릭터 아이콘, 레코드: 만화풍 판과 왕눈이 라벨), point = 달력 디자인 윗부분 색
  * bg = 배경 '컬러'에서 고른 바탕색 (0이면 검정/흰색, 캐릭터 카드는 날씨마다 바뀌는 색)
+ * disc = 레코드판·카세트 몸통 색 (0이면 기본: 판은 검정, 카세트는 진한 갈색/병맛 분홍), player = 레코드판 / 카세트
  */
 data class WidgetStyle(
     val white: Boolean, val transparency: Int, val fg: Int, val design: Int, val glass: Boolean = true,
     val corner: Int = -1, val glassArt: Boolean = true, val artShadow: Boolean = true,
     val quirky: Boolean = false, val point: Int = WidgetStyle.DEFAULT_POINT,
-    val bg: Int = 0
+    val bg: Int = 0,
+    val disc: Int = 0, val player: Int = WidgetStyle.VINYL
 ) {
     companion object {
         /** 달력 디자인 윗부분 기본 색 (벽돌색) */
         const val DEFAULT_POINT = 0xFFB23A2E.toInt()
+        const val VINYL = 0
+        const val CASSETTE = 1
     }
 }
 
@@ -71,7 +75,7 @@ object KindConfig {
         val (w, h) = previewSize(k)
         val l = LabelRenderer.draw(null, Palette.label(ctx), style.quirky)
         return when (k) {
-            Kind.MUSIC -> MusicWidget.build(ctx, style, l, playing = false, status = null)
+            Kind.MUSIC -> MusicWidget.build(ctx, style, l, playing = false, status = null, title = "곡 제목", artist = "가수 이름")
             Kind.MUSIC_WIDE -> MusicWidget.buildWide(ctx, style, l, false, "곡 제목", "가수 이름", null, w, h)
             Kind.WEATHER -> WeatherWidget.build(ctx, style, WeatherStore.load(ctx), w, h)
             Kind.WEATHER_WIDE -> WeatherWidget.buildWide(ctx, style, WeatherStore.load(ctx), w, h)
@@ -118,7 +122,9 @@ object WidgetPrefs {
             p.getBoolean(dk(k, "sh"), d.artShadow),
             p.getBoolean(dk(k, "q"), d.quirky),
             p.getInt(dk(k, "pc"), d.point),
-            p.getInt(dk(k, "bc"), d.bg)
+            p.getInt(dk(k, "bc"), d.bg),
+            p.getInt(dk(k, "dc"), d.disc),
+            p.getInt(dk(k, "pl"), d.player)
         )
         if (id == null) return base
         return WidgetStyle(
@@ -132,7 +138,9 @@ object WidgetPrefs {
             p.getBoolean("sh_$id", base.artShadow),
             p.getBoolean("q_$id", base.quirky),
             p.getInt("pc_$id", base.point),
-            p.getInt("bc_$id", base.bg)
+            p.getInt("bc_$id", base.bg),
+            p.getInt("dc_$id", base.disc),
+            p.getInt("pl_$id", base.player)
         )
     }
 
@@ -144,11 +152,13 @@ object WidgetPrefs {
                 .putInt("f_$id", s.fg).putInt("d_$id", s.design).putBoolean("g_$id", s.glass)
                 .putInt("r_$id", s.corner).putBoolean("ga_$id", s.glassArt).putBoolean("sh_$id", s.artShadow)
                 .putBoolean("q_$id", s.quirky).putInt("pc_$id", s.point).putInt("bc_$id", s.bg)
+                .putInt("dc_$id", s.disc).putInt("pl_$id", s.player)
         } else {
             e.putBoolean(dk(k, "w"), s.white).putInt(dk(k, "a"), s.transparency)
                 .putInt(dk(k, "f"), s.fg).putInt(dk(k, "d"), s.design).putBoolean(dk(k, "g"), s.glass)
                 .putInt(dk(k, "r"), s.corner).putBoolean(dk(k, "ga"), s.glassArt).putBoolean(dk(k, "sh"), s.artShadow)
                 .putBoolean(dk(k, "q"), s.quirky).putInt(dk(k, "pc"), s.point).putInt(dk(k, "bc"), s.bg)
+                .putInt(dk(k, "dc"), s.disc).putInt(dk(k, "pl"), s.player)
             val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, KindConfig.provider(k)))
             ids.forEach { removeId(e, it) }
         }
@@ -162,7 +172,7 @@ object WidgetPrefs {
     }
 
     private fun removeId(e: android.content.SharedPreferences.Editor, id: Int) {
-        for (f in listOf("w", "t", "c", "d", "a", "f", "g", "r", "ga", "sh", "q", "pc", "bc")) e.remove("${f}_$id")
+        for (f in listOf("w", "t", "c", "d", "a", "f", "g", "r", "ga", "sh", "q", "pc", "bc", "dc", "pl")) e.remove("${f}_$id")
     }
 
     fun alphaOf(transparency: Int): Int = ((100 - transparency) * 255 / 100).coerceIn(0, 255)

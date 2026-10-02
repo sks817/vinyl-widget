@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <rotate xmlns:android="http://schemas.android.com/apk/res/android"
-    android:drawable="@drawable/vinyl_grooves_fun"
+    android:drawable="@drawable/reel"
     android:fromDegrees="0" android:toDegrees="360"
     android:pivotX="50%" android:pivotY="50%" />

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 판 몸통 위에 얹는 홈·광택·테두리 (몸통 없이 투명). 흰색 반투명이라 어떤 판 색 위에서도 홈이 보임.
+     검정(#111) 몸통 위에서는 예전 vinyl_disc와 같은 색이 나옴. 광택 두 줄은 회전이 눈에 보이게 하는 표식 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp" android:height="200dp"
+    android:viewportWidth="200" android:viewportHeight="200">
+    <path android:strokeColor="#16FFFFFF" android:strokeWidth="0.8"
+        android:pathData="M100,5a95,95 0 1,1 0,190a95,95 0 1,1 0,-190 M100,9a91,91 0 1,1 0,182a91,91 0 1,1 0,-182 M100,13a87,87 0 1,1 0,174a87,87 0 1,1 0,-174 M100,17a83,83 0 1,1 0,166a83,83 0 1,1 0,-166 M100,21a79,79 0 1,1 0,158a79,79 0 1,1 0,-158 M100,25a75,75 0 1,1 0,150a75,75 0 1,1 0,-150 M100,29a71,71 0 1,1 0,142a71,71 0 1,1 0,-142 M100,33a67,67 0 1,1 0,134a67,67 0 1,1 0,-134" />
+    <path android:strokeColor="#22FFFFFF" android:strokeWidth="14" android:strokeLineCap="round"
+        android:pathData="M141,28.99 A82,82 0 0,1 177.05,71.96" />
+    <path android:strokeColor="#12FFFFFF" android:strokeWidth="14" android:strokeLineCap="round"
+        android:pathData="M59,171.01 A82,82 0 0,1 28.99,141" />
+    <path android:strokeColor="#2CFFFFFF" android:strokeWidth="1.2"
+        android:pathData="M100,1a99,99 0 1,1 0,198a99,99 0 1,1 0,-198" />
+</vector>

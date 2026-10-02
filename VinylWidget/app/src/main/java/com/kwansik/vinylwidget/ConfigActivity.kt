@@ -81,6 +81,8 @@ class ConfigActivity : Activity() {
     private var quirky = false
     private var point = WidgetStyle.DEFAULT_POINT
     private var bg = 0
+    private var disc = 0
+    private var player = WidgetStyle.VINYL
 
     private val hsv = FloatArray(3)
     private var updatingUi = false
@@ -127,6 +129,7 @@ class ConfigActivity : Activity() {
         white = s.white; glass = s.glass; transparency = s.transparency; color = s.fg
         design = s.design; corner = s.corner; glassArt = s.glassArt; artShadow = s.artShadow
         quirky = s.quirky; point = s.point; bg = s.bg
+        disc = s.disc; player = s.player
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(buildPreview(), LinearLayout.LayoutParams(MATCH, dp(236)))
@@ -140,7 +143,7 @@ class ConfigActivity : Activity() {
 
     private fun targetId(): Int? = widgetId.takeIf { it != AppWidgetManager.INVALID_APPWIDGET_ID }
     private fun resultIntent() = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt, artShadow, quirky, point, bg)
+    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt, artShadow, quirky, point, bg, disc, player)
     private fun isWeather() = kind == Kind.WEATHER || kind == Kind.WEATHER_WIDE
 
     // ================= 미리보기 =================
@@ -204,6 +207,7 @@ class ConfigActivity : Activity() {
             body.addView(artCard())
             if (kind == Kind.WEATHER) body.addView(calendarCard())
         }
+        if (KindConfig.isMusic(kind)) body.addView(playerCard())
         body.addView(themeCard())
         body.addView(backgroundCard())
         body.addView(colorCard())
@@ -261,12 +265,34 @@ class ConfigActivity : Activity() {
         return card
     }
 
+    /** 판·테이프 색: 첫 번째(검정)는 '기본'(0)으로 저장 → 병맛이면 잉크색 판 / 분홍 테이프 */
+    private val discPresets = intArrayOf(
+        0xFF111111.toInt(), 0xFFC62828.toInt(), 0xFF7B1F3A.toInt(), 0xFFF48FB1.toInt(), 0xFFEF6C00.toInt(),
+        0xFFF2C14E.toInt(), 0xFF6CC4A1.toInt(), 0xFF1E5AA8.toInt(), 0xFF6A4C93.toInt(), 0xFFE8E4DC.toInt()
+    )
+
+    // ---- 플레이어 (음악): 레코드판 / 카세트 + 판·테이프 색 ----
+    private fun playerCard(): View {
+        val card = card("플레이어", "레코드판 또는 레트로 카세트 테이프. 병맛 테마를 켜면 각각 병맛 버전이 돼요")
+        card.addView(segmented(listOf("레코드판", "카세트 테이프"), selected = { player }) { i ->
+            player = i; refreshAll(); renderPreview()
+        })
+        card.addView(caption("판·테이프 색 (첫 번째 = 기본)").apply { setPadding(0, dp(12), 0, dp(2)) })
+        val sws = mutableListOf<View>()
+        card.addView(swatchGrid(discPresets, sws) { c ->
+            disc = if (c == discPresets[0]) 0 else c
+            refreshAll(); renderPreview()
+        })
+        refreshers += { sws.forEach { styleSwatch(it, it.tag as Int == (if (disc == 0) discPresets[0] else disc)) } }
+        return card
+    }
+
     // ---- 병맛 테마 ----
     private fun themeCard(): View {
         val music = KindConfig.isMusic(kind)
         val card = card("테마", null)
         card.addView(toggleRow("병맛 테마",
-            if (music) "만화풍 굵은 선 레코드판 + 라벨에 왕눈이 스티커" else "날씨 아이콘이 표정 있는 캐릭터로 바뀌어요",
+            if (music) "만화풍 레코드판·왕눈이 라벨 / 눈알이 도는 카세트" else "날씨 아이콘이 표정 있는 캐릭터로 바뀌어요",
             { quirky }) { quirky = it })
         return card
     }

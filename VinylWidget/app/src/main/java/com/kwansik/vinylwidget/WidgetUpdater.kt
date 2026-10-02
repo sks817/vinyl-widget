@@ -75,12 +75,12 @@ object WidgetUpdater {
         for (id in ids) {
             val style = WidgetPrefs.style(ctx, Kind.MUSIC, id)
             val (w, h) = WidgetGeom.sizeDp(mgr, id)
-            mgr.updateAppWidget(id, MusicWidget.build(ctx, style, labelFor(style), playing, status, w, h))
+            mgr.updateAppWidget(id, MusicWidget.build(ctx, style, labelFor(style), playing, status, w, h, np?.art, np?.title, np?.artist))
         }
         for (id in wideIds) {
             val style = WidgetPrefs.style(ctx, Kind.MUSIC_WIDE, id)
             val (w, h) = WidgetGeom.sizeDp(mgr, id)
-            mgr.updateAppWidget(id, MusicWidget.buildWide(ctx, style, labelFor(style), playing, np?.title, np?.artist, status, w, h))
+            mgr.updateAppWidget(id, MusicWidget.buildWide(ctx, style, labelFor(style), playing, np?.title, np?.artist, status, w, h, np?.art))
         }
         lastKey = key
     }

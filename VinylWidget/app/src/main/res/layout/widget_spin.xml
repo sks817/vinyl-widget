@@ -17,10 +17,15 @@
             <FrameLayout android:id="@+id/deck"
                 android:layout_width="118dp" android:layout_height="100dp"
                 android:layout_gravity="center">
+                <!-- 판 몸통: 사용자가 고른 판 색(setColorFilter). 그 위에 홈·광택(static_disc / spinner)이 얹힘 -->
+                <ImageView android:id="@+id/disc_body"
+                    android:layout_width="100dp" android:layout_height="100dp"
+                    android:layout_gravity="start|center_vertical"
+                    android:src="@drawable/vinyl_body" android:scaleType="fitCenter" />
                 <ImageView android:id="@+id/static_disc"
                     android:layout_width="100dp" android:layout_height="100dp"
                     android:layout_gravity="start|center_vertical"
-                    android:src="@drawable/vinyl_disc" android:scaleType="fitCenter" />
+                    android:src="@drawable/vinyl_grooves" android:scaleType="fitCenter" />
                 <ProgressBar android:id="@+id/spinner"
                     android:layout_width="100dp" android:layout_height="100dp"
                     android:layout_gravity="start|center_vertical"
@@ -54,6 +59,7 @@
                     android:background="@drawable/tonearm_anim"
                     android:clickable="false" android:focusable="false" />
             </FrameLayout>
+            <include layout="@layout/tape_part" />
             <TextView android:id="@+id/status"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:layout_gravity="center" android:gravity="center"

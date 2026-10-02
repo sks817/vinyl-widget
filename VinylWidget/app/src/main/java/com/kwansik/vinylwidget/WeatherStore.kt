@@ -10,7 +10,8 @@ import kotlin.math.roundToInt
 data class WeatherData(
     val temp: Double?, val min: Double?, val max: Double?,
     val code: Int?, val isDay: Boolean?, val updated: Long, val error: String?,
-    val sunriseMin: Int? = null, val sunsetMin: Int? = null      // 하루 중 분(예: 06:25 → 385)
+    val sunriseMin: Int? = null, val sunsetMin: Int? = null,     // 하루 중 분(예: 06:25 → 385)
+    val hourly: List<HourWx> = emptyList()                         // 앞으로 몇 시간 예보 (4×2 위젯 아래 줄)
 ) {
     companion object {
         val EMPTY = WeatherData(null, null, null, null, null, 0L, null)
@@ -103,6 +104,36 @@ data class WeatherData(
     fun message(): String? = if (temp == null) (error ?: "갱신 대기 중") else null
 }
 
+/** 시간별 예보 한 칸. hour = 0~23시 */
+data class HourWx(val hour: Int, val temp: Double, val code: Int, val day: Boolean) {
+    fun tempText() = "${temp.roundToInt()}°"
+    fun label() = if (hour == 0) "자정" else if (hour == 12) "정오" else "${hour}시"
+    /** 같은 코드의 병맛 캐릭터 / 입체 아이콘 (WeatherData와 같은 규칙) */
+    fun iconFun() = funFor(code, !day)
+    fun icon3d() = ic3For(code, !day)
+
+    companion object {
+        fun funFor(c: Int, n: Boolean): Int = when (c) {
+            0, 1 -> if (n) R.drawable.w_fun_clear_night else R.drawable.w_fun_clear_day
+            2 -> if (n) R.drawable.w_fun_partly_night else R.drawable.w_fun_partly_day
+            45, 48 -> R.drawable.w_fun_fog
+            in 51..67, in 80..82 -> R.drawable.w_fun_rain
+            in 71..77, 85, 86 -> R.drawable.w_fun_snow
+            in 95..99 -> R.drawable.w_fun_thunder
+            else -> R.drawable.w_fun_cloudy
+        }
+        fun ic3For(c: Int, n: Boolean): Int = when (c) {
+            0, 1 -> if (n) R.drawable.w_ic3_clear_night else R.drawable.w_ic3_clear_day
+            2 -> if (n) R.drawable.w_ic3_partly_night else R.drawable.w_ic3_partly_day
+            45, 48 -> R.drawable.w_ic3_fog
+            in 51..67, in 80..82 -> R.drawable.w_ic3_rain
+            in 71..77, 85, 86 -> R.drawable.w_ic3_snow
+            in 95..99 -> R.drawable.w_ic3_thunder
+            else -> R.drawable.w_ic3_cloudy
+        }
+    }
+}
+
 object WeatherStore {
     private fun sp(ctx: Context) = ctx.getSharedPreferences("weather", Context.MODE_PRIVATE)
 
@@ -116,7 +147,12 @@ object WeatherStore {
             val o = JSONObject(s)
             WeatherData(o.optD("temp"), o.optD("min"), o.optD("max"), o.optI("code"),
                 if (o.has("day")) o.getBoolean("day") else null, o.optLong("updated", 0L), o.optS("error"),
-                o.optI("sunrise"), o.optI("sunset"))
+                o.optI("sunrise"), o.optI("sunset"),
+                o.optJSONArray("hourly")?.let { a ->
+                    (0 until a.length()).mapNotNull { i ->
+                        a.optJSONObject(i)?.let { h -> HourWx(h.getInt("h"), h.getDouble("t"), h.getInt("c"), h.optBoolean("d", true)) }
+                    }
+                } ?: emptyList())
         } catch (e: Exception) {
             WeatherData.EMPTY
         }
@@ -127,6 +163,9 @@ object WeatherStore {
             .putOpt("temp", d.temp).putOpt("min", d.min).putOpt("max", d.max)
             .putOpt("code", d.code).putOpt("day", d.isDay).put("updated", d.updated).putOpt("error", d.error)
             .putOpt("sunrise", d.sunriseMin).putOpt("sunset", d.sunsetMin)
+            .put("hourly", org.json.JSONArray().apply {
+                d.hourly.forEach { h -> put(JSONObject().put("h", h.hour).put("t", h.temp).put("c", h.code).put("d", h.day)) }
+            })
         sp(ctx).edit().putString("data2", o.toString()).apply()
     }
 

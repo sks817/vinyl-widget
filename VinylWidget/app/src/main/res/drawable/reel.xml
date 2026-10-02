@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 카세트 릴(톱니 허브). 테이프가 감기는 하얀 허브 + 톱니 6개 → 돌아가는 게 눈에 보임 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp" android:height="100dp"
+    android:viewportWidth="100" android:viewportHeight="100">
+    <path android:fillColor="#FFF4EFE6" android:strokeColor="#FFB9B1A4" android:strokeWidth="2"
+        android:pathData="M50,6a44,44 0 1,1 0,88a44,44 0 1,1 0,-88z" />
+    <path android:fillColor="#FF2A2623"
+        android:pathData="M50,28a22,22 0 1,1 0,44a22,22 0 1,1 0,-44z" />
+    <path android:fillColor="#FFF4EFE6"
+        android:pathData="M46,26h8v10h-8z M46,64h8v10h-8z M28.9,41.9l4,-6.9l8.7,5l-4,6.9z M58.4,59l4,-6.9l8.7,5l-4,6.9z M33,65l-4,-6.9l8.7,-5l4,6.9z M62.4,48l-4,-6.9l8.7,-5l4,6.9z" />
+    <path android:fillColor="#FFD8CFC2"
+        android:pathData="M50,12a5,5 0 1,1 0,10a5,5 0 1,1 0,-10z M50,78a5,5 0 1,1 0,10a5,5 0 1,1 0,-10z" />
+</vector>
