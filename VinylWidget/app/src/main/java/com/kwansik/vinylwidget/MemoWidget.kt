@@ -94,7 +94,9 @@ object CalendarReader {
  */
 class MemoScene(
     private val ctx: Context, wDp: Float, hDp: Float,
-    private val fg: Int, private val sub: Int, private val accent: Int, private val quirky: Boolean
+    private val fg: Int, private val sub: Int, private val accent: Int, private val quirky: Boolean,
+    /** 위젯 바탕 진하기(0~255). 바탕이 옅을수록 빈 막대·구분선을 진하게 해서 배경화면 위에서도 보이게 */
+    private val bgAlpha: Int = 255
 ) {
     val bitmap: Bitmap
     private val c: Canvas
@@ -130,8 +132,9 @@ class MemoScene(
     private fun dot(x: Float, y: Float, r: Float, col: Int) = c.drawCircle(x, y, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = col })
     /** 보조 글자: 고른 글자색을 85% 진하기로 (투명한 보조색은 유리 바탕 위에서 묻혀 보임) */
     private val soft get() = a(fg, 0xD9)
-    private val track get() = a(fg, 0x17)
-    private val line get() = a(fg, 0x1F)
+    private val thin = (255 - bgAlpha.coerceIn(0, 255)) / 255f
+    private val track get() = a(fg, (0x1A + 0x3A * thin).toInt())
+    private val line get() = a(fg, (0x24 + 0x30 * thin).toInt())
     private fun solid(col: Int) = col or 0xFF000000.toInt()
 
     // ---- 시간 계산 ----
@@ -193,12 +196,12 @@ class MemoScene(
     }
 
     /** 지금 바늘. 병맛이면 바늘 끝이 지금 날씨 캐릭터 */
-    private fun needle(x: Float, y0: Float, y1: Float, vertical: Boolean = false) {
+    private fun needle(x: Float, y0: Float, y1: Float, vertical: Boolean = false, iconSize: Float = 16f * k) {
         val pt = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = fg }
         if (!vertical) c.drawRect(x - k, y0, x + k, y1, pt) else c.drawRect(y0, x - k, y1, x + k, pt)
         val fun_ = if (quirky) Assets.get(ctx, WeatherStore.load(ctx).iconFun()) else null
         if (fun_ != null) {
-            val s = 16f * k
+            val s = iconSize
             val r = if (!vertical) RectF(x - s / 2, y0 - s + 3f * k, x + s / 2, y0 + 3f * k) else RectF(y0 - s + 2f * k, x - s / 2, y0 + 2f * k, x + s / 2)
             c.drawBitmap(fun_, null, r, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
         } else if (!vertical) c.drawCircle(x, y0, 3.5f * k, pt) else c.drawCircle(y0, x, 3.5f * k, pt)
@@ -233,33 +236,42 @@ class MemoScene(
         val tomorrowS = if (tomorrow.isEmpty()) "내일 일정 없음" else "내일 · ${tomorrow[0].title}" + (if (tomorrow.size > 1) " 외 ${tomorrow.size - 1}" else "")
         val wide = wd >= hd * 1.55f
         // 배치마다 기준 크기(dp)가 있고, 위젯이 그보다 크면 글자·간격도 같은 비율로 키움
+        // 4×1은 높이가 50~100dp로 기기마다 많이 달라서 높이 비율로 배치
         val (bw, bh) = when {
-            wide && hd < 110f -> 350f to 84f
+            wide && hd < 110f -> 320f to 56f
             wide -> 350f to 170f
             hd >= wd * 1.5f -> 170f to 360f
             else -> 170f to 170f
         }
-        k = kb * min(wd / bw, hd / bh).coerceIn(0.75f, 1.6f)
+        k = kb * min(wd / bw, hd / bh).coerceIn(0.7f, 1.35f)
 
-        if (wide && hd < 110f) {                              // ---- 4×1 ----
-            val pd = edge(16f * k)
-            val ty = pd + 2f * k
-            val x = hBar(pd, W - pd, ty, 10f * k, timed, h0, h1, false)
-            needle(x(nowH), ty - 5f * k, ty + 15f * k)
-            val y = H - pd - 12f * k
-            if (next == null) { mid(emptyMsg, pd, y, p(14f, 700, soft)); return }
-            rr(pd, y - 15f * k, 4f * k, 30f * k, 2f * k, solid(next.color))
-            mid(rel(next), pd + 13f * k, y - 7f * k, p(10f, 700, solid(next.color)))
-            val right0 = W - pd - 80f * k
-            val tp = p(13f, 600, fg, Paint.Align.RIGHT)
-            mid(next.start ?: "종일", right0, y, tp)
-            mid(ell(next.title, p(17f, 800, fg), right0 - tp.measureText(next.start ?: "종일") - 12f * k - (pd + 13f * k)), pd + 13f * k, y + 8f * k, p(17f, 800, fg))
-            c.drawRect(W - pd - 70f * k, y - 12f * k, W - pd - 69f * k, y + 12f * k, Paint().apply { color = line })
-            val f = after.firstOrNull()
-            if (f != null) {
-                mid("이후 " + (if (f.day == today) (f.start ?: "종일") else dayName(f.day)), W - pd, y - 6f * k, p(10f, 500, soft, Paint.Align.RIGHT))
-                mid(ell(f.title, p(11f, 700, fg), 62f * k), W - pd, y + 8f * k, p(11f, 700, fg, Paint.Align.RIGHT))
-            } else mid("이후 없음", W - pd, y, p(10f, 500, soft, Paint.Align.RIGHT))
+        if (wide && hd < 110f) {                              // ---- 4×1: [다음 일정] | [하루 막대 + 이후 일정] ----
+            val pd = edge(14f * k)
+            val split = W * 0.56f
+            val y1 = H * 0.34f; val y2 = H * 0.68f
+            // 오른쪽: 하루 막대 + 지금 바늘, 아래에 이후 일정
+            val rl = split + 14f * k
+            val by = H * 0.38f - 4f * k
+            val x = hBar(rl, W - pd, by, 8f * k, timed, h0, h1, false)
+            needle(x(nowH), by - 4f * k, by + 12f * k, iconSize = 12f * k)
+            val f = if (next == null) null else after.firstOrNull()
+            val rs = when {
+                f != null -> "이후 " + (if (f.day == today) (f.start ?: "종일") else dayName(f.day)) + " · " + f.title
+                todays.isNotEmpty() -> headRight
+                else -> tomorrowS
+            }
+            mid(ell(rs, p(11f, 600, soft), W - pd - rl), W - pd, y2 + 2f * k, p(11f, 600, soft, Paint.Align.RIGHT))
+            // 왼쪽: 색 막대 / 남은 시간 / 제목·시각
+            if (next == null) { mid(ell(emptyMsg, p(15f, 800, soft), split - pd), pd, H / 2, p(15f, 800, soft)); return }
+            rr(pd, y1 - 7f * k, 4f * k, y2 - y1 + 16f * k, 2f * k, solid(next.color))
+            val lx = pd + 12f * k
+            mid(ell((if (next.day == today) "다음 · " else "") + rel(next), p(11f, 700, solid(next.color)), split - lx), lx, y1, p(11f, 700, solid(next.color)))
+            val tp = p(12f, 600, soft)
+            val tm = "  " + (if (next.day == today) (next.start ?: "종일") else dayName(next.day))
+            val np = p(17f, 800, fg)
+            val tt = ell(next.title, np, split - lx - tp.measureText(tm))
+            mid(tt, lx, y2, np)
+            mid(tm, lx + np.measureText(tt), y2 + k, tp)
             return
         }
 
@@ -368,7 +380,8 @@ object MemoWidget {
     fun build(ctx: Context, style: WidgetStyle, id: Int?, wDp: Float, hDp: Float, events: List<CalEvent>, permission: Boolean): RemoteViews {
         val rv = RemoteViews(ctx.packageName, R.layout.widget_memo)
         Palette.applyBackground(ctx, rv, style, wDp, hDp)
-        val scene = MemoScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style), style.quirky)
+        val scene = MemoScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style), style.quirky,
+            if (Palette.bgHidden(style)) 0 else WidgetPrefs.alphaOf(style.transparency))
         scene.draw(events, permission, style.corner)
         rv.setImageViewBitmap(R.id.memo_canvas, scene.bitmap)
         // 누르면 캘린더 앱. 권한이 없으면 꾸미기 화면(권한 버튼이 있음)

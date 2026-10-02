@@ -22,6 +22,15 @@ object WeatherWidget {
     const val CARD_2X2 = 9
     const val CARD_1X4 = 5
 
+    /**
+     * 위젯 모양에 맞는 배치: 2×2 날씨를 4×1처럼 길게 늘리면 가로 디자인으로,
+     * 1×4 날씨를 3×3처럼 키우면 정사각 디자인으로 (글자가 높이에 비례해 거대해지지 않게).
+     * 디자인은 가장 닮은 것으로 바꿔 그림
+     */
+    private fun isRow(wDp: Float, hDp: Float) = wDp >= hDp * 2.2f
+    private val SQUARE_TO_WIDE = intArrayOf(1, 2, 1, 2, 3, 3, 3, 4, 5, 6)
+    private val WIDE_TO_SQUARE = intArrayOf(1, 2, 5, 8, 9, 10)
+
     fun renderAll(ctx: Context) {
         try {
             val mgr = AppWidgetManager.getInstance(ctx)
@@ -64,6 +73,7 @@ object WeatherWidget {
             val look = when (design) { 1, 3 -> BigScene.ART; 8, 9, 10 -> BigScene.CHAR; else -> BigScene.PLAIN }
             return buildBig(ctx, style, d, wDp, hDp, look, design == CARD_2X2)
         }
+        if (isRow(wDp, hDp)) return buildWide(ctx, styleIn.copy(design = SQUARE_TO_WIDE[design - 1]), d, wDp, hDp)
         val rv = RemoteViews(ctx.packageName, R.layout.weather_canvas)
         // 같은 레이아웃을 다시 쓸 때 4×2에서 바꿔 둔 높이가 남지 않게 원래 값(44dp)으로
         rv.setViewLayoutHeight(R.id.w_tap_refresh, WidgetGeom.ROW, android.util.TypedValue.COMPLEX_UNIT_DIP)
@@ -87,6 +97,7 @@ object WeatherWidget {
             val look = when (design) { 1 -> BigScene.ART; 4, 5, 6 -> BigScene.CHAR; else -> BigScene.PLAIN }
             return buildBig(ctx, style, d, wDp, hDp, look, design == CARD_1X4)
         }
+        if (!isRow(wDp, hDp)) return build(ctx, styleIn.copy(design = WIDE_TO_SQUARE[design - 1]), d, wDp, hDp)
         val rv = RemoteViews(ctx.packageName, R.layout.weather_wide)
         val simple = design == 3
         // 심플(검정/흰색): 슬라이더(배경 투명도)가 회색 카드에 적용되므로 위젯 기본 배경은 숨김.
