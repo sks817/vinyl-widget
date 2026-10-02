@@ -255,13 +255,9 @@ class ConfigActivity : Activity() {
         card.addView(glassRow)
         card.addView(divider())
         card.addView(shadowRow)
-        card.addView(divider())
-        val shown = if (corner < 0) KindConfig.defaultCorner(kind) else corner
-        val cornerRow = slider("모서리 둥글기", 50, shown, { "$it%" }) { corner = it; renderPreview() }
-        card.addView(cornerRow)
         refreshers += {
             val artDesign = design == 1
-            dim(glassRow, artDesign); dim(cornerRow, artDesign)
+            dim(glassRow, artDesign)
             dim(shadowRow, artDesign && transparency >= 100)
         }
         return card
@@ -387,6 +383,10 @@ class ConfigActivity : Activity() {
         card.addView(slider("배경 투명도", 100, transparency, { "$it%" }, keep = { bar, value -> transBar = bar; transValue = value }) {
             transparency = it; refreshAll(); renderPreview()
         })
+        // 모서리 둥글기: 위젯 바탕(과 날씨 그림) 모서리. 짧은 변의 %, 처음엔 시스템 기본 곡률
+        card.addView(space(6))
+        val shown = if (corner < 0) KindConfig.defaultCorner(kind) else corner
+        card.addView(slider("모서리 둥글기", 50, shown, { "$it%" }) { corner = it; renderPreview() })
         return card
     }
 

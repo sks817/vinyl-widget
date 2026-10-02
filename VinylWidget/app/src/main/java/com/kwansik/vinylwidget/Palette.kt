@@ -4,7 +4,15 @@ import android.app.WallpaperColors
 import android.app.WallpaperManager
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Shader
 import android.widget.RemoteViews
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * 위젯 색 정하기.
@@ -69,9 +77,15 @@ object Palette {
     /** 앨범 커버가 없을 때 레코드 라벨 색: 배경화면 색을 따라감 */
     fun label(ctx: Context): Int = ctx.getColor(android.R.color.system_accent1_400)
 
-    /** 위젯 바탕(bg_image). visible=false면 바탕을 숨김 */
-    fun applyBackground(rv: RemoteViews, s: WidgetStyle, visible: Boolean = true) {
-        if (s.glass) {
+    /**
+     * 위젯 바탕(bg_image). visible=false면 바탕을 숨김.
+     * 모서리 둥글기를 직접 고르면(corner >= 0) 그 곡률로 바탕을 그려 넣고, 아니면 시스템 기본 곡률 그림을 씀
+     */
+    fun applyBackground(ctx: Context, rv: RemoteViews, s: WidgetStyle, wDp: Float, hDp: Float, visible: Boolean = true) {
+        if (s.corner >= 0 && visible) {
+            rv.setImageViewBitmap(R.id.bg_image, roundedBg(ctx, s, wDp, hDp))
+            rv.setInt(R.id.bg_image, "setColorFilter", 0)
+        } else if (s.glass) {
             rv.setImageViewResource(R.id.bg_image, R.drawable.widget_bg_glass)
             rv.setInt(R.id.bg_image, "setColorFilter", 0)            // 색 덮어쓰기 없음 (투명색 SRC_ATOP = 원본 그대로)
         } else {
@@ -79,6 +93,34 @@ object Palette {
             rv.setInt(R.id.bg_image, "setColorFilter", WidgetPrefs.bgColor(s))
         }
         rv.setInt(R.id.bg_image, "setImageAlpha", if (visible) WidgetPrefs.alphaOf(s.transparency) else 0)
+    }
+
+    /** 고른 곡률(짧은 변의 %)로 그린 바탕. 유리면 widget_bg_glass와 같은 층(바탕·색 비침·빛 반사·테두리) */
+    private fun roundedBg(ctx: Context, s: WidgetStyle, wDp: Float, hDp: Float): Bitmap {
+        val dens = WidgetGeom.density(ctx)
+        val k = dens * min(1f, 900f / (max(wDp, hDp) * dens))
+        val w = (wDp * k).toInt().coerceAtLeast(2); val h = (hDp * k).toInt().coerceAtLeast(2)
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        val r = RectF(0f, 0f, w.toFloat(), h.toFloat())
+        val rad = min(w, h) * s.corner.coerceIn(0, 50) / 100f
+        val pt = Paint(Paint.ANTI_ALIAS_FLAG)
+        if (s.glass) {
+            pt.color = ctx.getColor(R.color.glass_fill); c.drawRoundRect(r, rad, rad, pt)
+            pt.color = 0
+            pt.shader = LinearGradient(0f, 0f, w.toFloat(), h.toFloat(), ctx.getColor(R.color.glass_tint), 0, Shader.TileMode.CLAMP)
+            c.drawRoundRect(r, rad, rad, pt)
+            pt.shader = LinearGradient(0f, 0f, 0f, h / 2f, ctx.getColor(R.color.glass_shine), 0x00FFFFFF, Shader.TileMode.CLAMP)
+            c.drawRoundRect(r, rad, rad, pt)
+            pt.shader = null
+            val sw = k
+            pt.style = Paint.Style.STROKE; pt.strokeWidth = sw; pt.color = ctx.getColor(R.color.glass_stroke)
+            val ri = RectF(sw / 2, sw / 2, w - sw / 2, h - sw / 2)
+            c.drawRoundRect(ri, max(0f, rad - sw / 2), max(0f, rad - sw / 2), pt)
+        } else {
+            pt.color = WidgetPrefs.bgColor(s); c.drawRoundRect(r, rad, rad, pt)
+        }
+        return bmp
     }
 
     private val AUTO_ICONS = mapOf(

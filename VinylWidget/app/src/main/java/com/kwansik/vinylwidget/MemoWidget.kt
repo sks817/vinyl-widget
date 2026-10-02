@@ -100,14 +100,15 @@ class MemoScene(
     private val c: Canvas
     private val W: Float
     private val H: Float
-    private val k: Float
+    private val kb: Float                 // 그림 1dp = 몇 px (비트맵 크기용)
+    private var k: Float                  // 글자·간격 1dp = 몇 px (위젯 크기에 맞춰 키움)
     private val wd = wDp
     private val hd = hDp
 
     init {
         val dens = WidgetGeom.density(ctx)
-        k = dens * min(1f, 1000f / (max(wDp, hDp) * dens))
-        bitmap = Bitmap.createBitmap((wDp * k).toInt().coerceAtLeast(1), (hDp * k).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        kb = dens * min(1f, 1000f / (max(wDp, hDp) * dens)); k = kb
+        bitmap = Bitmap.createBitmap((wDp * kb).toInt().coerceAtLeast(1), (hDp * kb).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         c = Canvas(bitmap); W = bitmap.width.toFloat(); H = bitmap.height.toFloat()
     }
 
@@ -211,7 +212,13 @@ class MemoScene(
         top(if (e.day == today) span(e) else (e.start ?: "종일"), lx, y + 45f * k * title / 22f, p(12f * title / 22f + 0.5f, 500, sub))
     }
 
-    fun draw(events: List<CalEvent>, permission: Boolean) {
+    /** 모서리를 많이 둥글게 하면 글자가 곡선 밖으로 나가지 않게 여백을 늘림 */
+    private var rad = 0f
+    private fun edge(base: Float) = max(base, GlassArt.cornerInset(rad, base) + base * 0.4f)
+
+    /** corner = 모서리 둥글기(짧은 변의 %, -1이면 시스템 기본 ≈ 11%) */
+    fun draw(events: List<CalEvent>, permission: Boolean, corner: Int = -1) {
+        rad = min(W, H) * (if (corner < 0) 11 else corner.coerceIn(0, 50)) / 100f
         val todays = events.filter { it.day == today }
         val timed = todays.filter { !it.allDay }
         val upcoming = events.filter { !done(it) && !(it.allDay && it.day == today) }   // 다음 일정 후보
@@ -223,9 +230,17 @@ class MemoScene(
         val headRight = if (todays.isEmpty()) "일정 없음" else "일정 ${todays.size} · 여유 ${freeHours(timed, h1)}시간"
         val tomorrowS = if (tomorrow.isEmpty()) "내일 일정 없음" else "내일 · ${tomorrow[0].title}" + (if (tomorrow.size > 1) " 외 ${tomorrow.size - 1}" else "")
         val wide = wd >= hd * 1.55f
+        // 배치마다 기준 크기(dp)가 있고, 위젯이 그보다 크면 글자·간격도 같은 비율로 키움
+        val (bw, bh) = when {
+            wide && hd < 110f -> 350f to 84f
+            wide -> 350f to 170f
+            hd >= wd * 1.5f -> 170f to 360f
+            else -> 170f to 170f
+        }
+        k = kb * min(wd / bw, hd / bh).coerceIn(0.75f, 1.6f)
 
         if (wide && hd < 110f) {                              // ---- 4×1 ----
-            val pd = 16f * k
+            val pd = edge(16f * k)
             val ty = pd + 2f * k
             val x = hBar(pd, W - pd, ty, 10f * k, timed, h0, h1, false)
             needle(x(nowH), ty - 5f * k, ty + 15f * k)
@@ -247,7 +262,7 @@ class MemoScene(
         }
 
         if (wide) {                                           // ---- 4×2 ----
-            val pd = 20f * k
+            val pd = edge(20f * k)
             top("오늘", pd, pd - k, p(11f, 700, sub))
             mid(headRight, W - pd, pd + 6f * k, p(11f, 600, sub, Paint.Align.RIGHT))
             val ty = pd + 24f * k
@@ -274,38 +289,39 @@ class MemoScene(
             return
         }
 
-        if (hd >= wd * 1.5f) {                                // ---- 2×4: 세로 막대 ----
-            val pd = 18f * k
-            top("오늘", pd, pd - k, p(11f, 700, sub))
-            mid(if (todays.isEmpty()) "일정 없음" else "일정 ${todays.size}", W - pd, pd + 6f * k, p(11f, 600, sub, Paint.Align.RIGHT))
-            val t0 = pd + 30f * k; val b0 = H - pd - 34f * k; val lx = pd + 6f * k
+        if (hd >= wd * 1.5f) {                                // ---- 2×4: 세로 막대 (세로로 길어 글자를 크게) ----
+            val pd = edge(18f * k)
+            top("오늘", pd, pd - k, p(13f, 700, sub))
+            mid(if (todays.isEmpty()) "일정 없음" else "일정 ${todays.size}", W - pd, pd + 7f * k, p(13f, 600, sub, Paint.Align.RIGHT))
+            val t0 = pd + 34f * k; val b0 = H - pd - 42f * k; val lx = pd + 8f * k
             val yOf = { hh: Float -> t0 + (b0 - t0) * ((hh - h0) / (h1 - h0)).coerceIn(0f, 1f) }
-            rr(lx, t0, 12f * k, b0 - t0, 6f * k, track)
+            rr(lx, t0, 14f * k, b0 - t0, 7f * k, track)
             var t = kotlin.math.ceil(h0 / 3f) * 3f; if (t <= h0) t += 3f
-            while (t < h1) { mid(t.toInt().toString(), lx - 6f * k, yOf(t), p(8f, 500, sub, Paint.Align.RIGHT)); t += 3f }
+            while (t < h1) { mid(t.toInt().toString(), lx - 5f * k, yOf(t), p(10f, 500, sub, Paint.Align.RIGHT)); t += 3f }
             val ny = yOf(nowH)
+            val tx = lx + 28f * k
             var lastY = -999f
             for (e in timed) {
-                val y0 = yOf(hourOf(e.beginMs)); val y1 = max(yOf(hourOf(e.endMs)), y0 + 12f * k)
-                rr(lx, y0, 12f * k, y1 - y0, 6f * k, if (done(e)) a(e.color, 0x59) else solid(e.color))
-                var ly = max(y0 + 2f * k, lastY + 34f * k)
-                if (ly < ny + 6f * k && ly + 30f * k > ny - 6f * k) ly = if (hourOf(e.beginMs) < nowH) min(ly, ny - 34f * k) else ny + 8f * k
-                if (ly + 28f * k > b0 + 10f * k) break
+                val y0 = yOf(hourOf(e.beginMs)); val y1 = max(yOf(hourOf(e.endMs)), y0 + 14f * k)
+                rr(lx, y0, 14f * k, y1 - y0, 7f * k, if (done(e)) a(e.color, 0x59) else solid(e.color))
+                var ly = max(y0 + 2f * k, lastY + 46f * k)
+                if (ly < ny + 6f * k && ly + 40f * k > ny - 6f * k) ly = if (hourOf(e.beginMs) < nowH) min(ly, ny - 46f * k) else ny + 8f * k
+                if (ly + 38f * k > b0 + 12f * k) break
                 val isN = e == next
-                top(if (isN) "다음 · " + rel(e) else (e.start ?: ""), lx + 24f * k, ly, p(10f, if (isN) 700 else 500, if (isN) solid(e.color) else sub))
-                val np = p(if (isN) 15f else 13f, if (isN) 800 else 700, if (done(e)) sub else fg)
-                top(ell(e.title, np, W - lx - 24f * k - pd), lx + 24f * k, ly + 13f * k, np)
+                top(if (isN) "다음 · " + rel(e) else span(e), tx, ly, p(12f, if (isN) 700 else 500, if (isN) solid(e.color) else sub))
+                val np = p(if (isN) 19f else 16f, if (isN) 800 else 700, if (done(e)) sub else fg)
+                top(ell(e.title, np, W - tx - pd), tx, ly + 16f * k, np)
                 lastY = ly
             }
-            needle(ny, lx - 5f * k, lx + 17f * k, vertical = true)
-            if (timed.isEmpty()) mid(emptyMsg, lx + 24f * k, (t0 + b0) / 2, p(12f, 700, sub))
-            c.drawRect(pd, H - pd - 22f * k, W - pd, H - pd - 21f * k, Paint().apply { color = line })
-            mid(ell(tomorrowS, p(11f, 600, sub), W - pd * 2), pd, H - pd - 8f * k, p(11f, 600, sub))
+            needle(ny, lx - 5f * k, lx + 19f * k, vertical = true)
+            if (timed.isEmpty()) mid(ell(emptyMsg, p(14f, 700, sub), W - tx - pd), tx, (t0 + b0) / 2, p(14f, 700, sub))
+            c.drawRect(pd, H - pd - 28f * k, W - pd, H - pd - 27f * k, Paint().apply { color = line })
+            mid(ell(tomorrowS, p(13f, 600, sub), W - pd * 2), pd, H - pd - 10f * k, p(13f, 600, sub))
             return
         }
 
         // ---- 2×2 ----
-        val pd = 16f * k
+        val pd = edge(16f * k)
         top(if (todays.isEmpty()) "오늘 · 일정 없음" else "오늘 · 일정 ${todays.size}", pd, pd - 3f * k, p(10f, 700, sub))
         val ty = pd + 26f * k
         val x = hBar(pd, W - pd, ty, 12f * k, timed, h0, h1, false)
@@ -346,9 +362,9 @@ object MemoWidget {
 
     fun build(ctx: Context, style: WidgetStyle, id: Int?, wDp: Float, hDp: Float, events: List<CalEvent>, permission: Boolean): RemoteViews {
         val rv = RemoteViews(ctx.packageName, R.layout.widget_memo)
-        Palette.applyBackground(rv, style)
+        Palette.applyBackground(ctx, rv, style, wDp, hDp)
         val scene = MemoScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style), style.quirky)
-        scene.draw(events, permission)
+        scene.draw(events, permission, style.corner)
         rv.setImageViewBitmap(R.id.memo_canvas, scene.bitmap)
         // 누르면 캘린더 앱. 권한이 없으면 꾸미기 화면(권한 버튼이 있음)
         val intent = if (permission) Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR)

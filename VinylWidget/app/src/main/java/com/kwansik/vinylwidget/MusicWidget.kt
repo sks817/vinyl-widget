@@ -23,8 +23,19 @@ object MusicWidget {
         wDp: Float = 170f, hDp: Float = 170f, art: Bitmap? = null, title: String? = null, artist: String? = null
     ): RemoteViews {
         if (BigScene.isBig(wDp, hDp)) return buildBig(ctx, style, label, playing, title, artist, status, wDp, hDp, art)
+        if (isRow(wDp, hDp)) return rowLayout(ctx, style, label, playing, title, artist, status, wDp, hDp, art)
+        return squareLayout(ctx, style, label, playing, status, wDp, hDp, art, title, artist)
+    }
+
+    /** 가로로 길쭉하면(4×1 등) 한 줄 배치. 2×2를 옆으로 늘려도, 1×4를 줄여도 크기에 맞는 배치가 나옴 */
+    private fun isRow(wDp: Float, hDp: Float) = wDp >= hDp * 1.8f
+
+    private fun squareLayout(
+        ctx: Context, style: WidgetStyle, label: Bitmap, playing: Boolean, status: String?,
+        wDp: Float, hDp: Float, art: Bitmap?, title: String?, artist: String?
+    ): RemoteViews {
         val rv = RemoteViews(ctx.packageName, R.layout.widget_spin)
-        Palette.applyBackground(rv, style)
+        Palette.applyBackground(ctx, rv, style, wDp, hDp)
 
         // 위젯 크기에 맞춰 판과 톤암 데크 크기 지정 (날씨 위젯도 같은 계산을 써서 크기가 맞음)
         val d = WidgetGeom.discDp(wDp, hDp)
@@ -50,8 +61,16 @@ object MusicWidget {
         title: String?, artist: String?, status: String?, wDp: Float, hDp: Float, art: Bitmap? = null
     ): RemoteViews {
         if (BigScene.isBig(wDp, hDp)) return buildBig(ctx, style, label, playing, title, artist, status, wDp, hDp, art)
+        if (!isRow(wDp, hDp)) return squareLayout(ctx, style, label, playing, status, wDp, hDp, art, title, artist)
+        return rowLayout(ctx, style, label, playing, title, artist, status, wDp, hDp, art)
+    }
+
+    private fun rowLayout(
+        ctx: Context, style: WidgetStyle, label: Bitmap, playing: Boolean,
+        title: String?, artist: String?, status: String?, wDp: Float, hDp: Float, art: Bitmap?
+    ): RemoteViews {
         val rv = RemoteViews(ctx.packageName, R.layout.widget_spin_wide)
-        Palette.applyBackground(rv, style)
+        Palette.applyBackground(ctx, rv, style, wDp, hDp)
 
         val d = (hDp - 14f).coerceIn(36f, 140f)            // 판 지름 = 위젯 높이에 맞춤
         val tapeW = ((hDp - 12f) * CassetteArt.RATIO).coerceIn(56f, 220f)
@@ -76,7 +95,7 @@ object MusicWidget {
         title: String?, artist: String?, status: String?, wDp: Float, hDp: Float, art: Bitmap? = null
     ): RemoteViews {
         val rv = RemoteViews(ctx.packageName, R.layout.widget_spin_big)
-        Palette.applyBackground(rv, style)
+        Palette.applyBackground(ctx, rv, style, wDp, hDp)
         val boxH = hDp - 20f
         val d = min(boxH * 0.96f, (wDp * 0.5f) / WidgetGeom.ARM).coerceAtLeast(60f)
         val tapeW = min(boxH * 0.8f * CassetteArt.RATIO, wDp * 0.52f)

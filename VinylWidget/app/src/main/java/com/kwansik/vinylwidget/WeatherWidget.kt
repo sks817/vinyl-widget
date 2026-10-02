@@ -68,7 +68,7 @@ object WeatherWidget {
         // 같은 레이아웃을 다시 쓸 때 4×2에서 바꿔 둔 높이가 남지 않게 원래 값(44dp)으로
         rv.setViewLayoutHeight(R.id.w_tap_refresh, WidgetGeom.ROW, android.util.TypedValue.COMPLEX_UNIT_DIP)
         val ownCard = design == CARD_2X2
-        Palette.applyBackground(rv, style, visible = !ownCard)
+        Palette.applyBackground(ctx, rv, style, wDp, hDp, visible = !ownCard)
         val scene = WeatherScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style),
             Palette.shadow(ctx, style), style.quirky, style.fg != Palette.AUTO)
         scene.draw(design, d, style.corner, style.glassArt,
@@ -92,7 +92,7 @@ object WeatherWidget {
         // 심플(검정/흰색): 슬라이더(배경 투명도)가 회색 카드에 적용되므로 위젯 기본 배경은 숨김.
         // 유리 배경이면 유리 카드가 곧 심플 카드
         val ownCard = (simple && !style.glass) || design == CARD_1X4
-        Palette.applyBackground(rv, style, visible = !ownCard)
+        Palette.applyBackground(ctx, rv, style, wDp, hDp, visible = !ownCard)
         val main = Palette.text(ctx, style)
         val scene = WideScene(ctx, wDp, hDp, main, Palette.sub(ctx, style), Palette.accent(ctx, style), Palette.shadow(ctx, style),
             style.quirky, style.fg != Palette.AUTO)
@@ -125,7 +125,7 @@ object WeatherWidget {
     /** 4×2: 위쪽(날짜·지금 날씨)을 누르면 캘린더, 아래 예보 줄을 누르면 네이버 날씨 */
     private fun buildBig(ctx: Context, style: WidgetStyle, d: WeatherData, wDp: Float, hDp: Float, look: Int, cardDesign: Boolean): RemoteViews {
         val rv = RemoteViews(ctx.packageName, R.layout.weather_canvas)
-        Palette.applyBackground(rv, style, visible = !cardDesign)
+        Palette.applyBackground(ctx, rv, style, wDp, hDp, visible = !cardDesign)
         val scene = BigScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style),
             style.quirky, style.fg != Palette.AUTO)
         scene.draw(look, d, style.corner, style.glassArt, style.artShadow && Palette.bgHidden(style),
