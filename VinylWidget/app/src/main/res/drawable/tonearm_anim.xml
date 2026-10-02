@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 재생 상태(checked)가 바뀌면 시스템이 톤암 회전 애니메이션을 알아서 재생 -->
+<animated-selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/arm_on" android:state_checked="true" android:drawable="@drawable/tonearm_on" />
+    <item android:id="@+id/arm_off" android:drawable="@drawable/tonearm_off" />
+    <transition android:fromId="@id/arm_off" android:toId="@id/arm_on" android:drawable="@drawable/tonearm_to_on" />
+    <transition android:fromId="@id/arm_on" android:toId="@id/arm_off" android:drawable="@drawable/tonearm_to_off" />
+</animated-selector>

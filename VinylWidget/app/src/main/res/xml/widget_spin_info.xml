@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- reconfigurable: 위젯을 길게 눌러 '설정'으로 다시 꾸미기
+     configuration_optional: 처음 놓을 땐 기본값으로 바로 표시 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="90dp"
+    android:minResizeHeight="90dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_spin"
+    android:previewLayout="@layout/widget_preview"
+    android:description="@string/widget_desc"
+    android:configure="com.kwansik.vinylwidget.ConfigActivity"
+    android:widgetFeatures="reconfigurable|configuration_optional"
+    android:widgetCategory="home_screen" />

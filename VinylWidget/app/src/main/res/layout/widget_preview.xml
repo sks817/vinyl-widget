@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ImageView android:id="@+id/bg_image"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:src="@drawable/widget_bg" android:scaleType="fitXY" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="8dp">
+        <ImageView
+            android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+            android:src="@drawable/vinyl_disc" android:scaleType="fitCenter" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:orientation="horizontal">
+            <ImageButton android:id="@+id/btn_prev"
+                android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+                android:src="@drawable/ic_prev" android:scaleType="centerInside"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/prev" />
+            <ImageButton android:id="@+id/btn_play"
+                android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+                android:src="@drawable/ic_play" android:scaleType="centerInside"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/play" />
+            <ImageButton android:id="@+id/btn_next"
+                android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+                android:src="@drawable/ic_next" android:scaleType="centerInside"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/next" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

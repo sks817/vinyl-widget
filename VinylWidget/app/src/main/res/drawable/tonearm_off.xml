@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 톤암. 판(지름 100)은 왼쪽 0~100, 톤암 회전축은 오른쪽 위 (108,12) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="118dp" android:height="100dp"
+    android:viewportWidth="118" android:viewportHeight="100">
+    <group android:name="arm" android:pivotX="108" android:pivotY="12" android:rotation="-30">
+        <path android:strokeColor="#55000000" android:strokeWidth="3.4" android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:pathData="M108.6,12.8 L102.6,38.8 L90.6,56.8" />
+        <path android:strokeColor="#FF3A3A3A" android:strokeWidth="4.6" android:strokeLineCap="round"
+            android:pathData="M108,12 L113,3" />
+        <path android:strokeColor="#FFD2D2D2" android:strokeWidth="2.4" android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:pathData="M108,12 L102,38 L90,56" />
+        <path android:fillColor="#FF2E2E2E" android:pathData="M86,53.5 L93.5,56.5 L91,63.5 L84,61 Z" />
+        <path android:fillColor="#FFB89A5A" android:pathData="M87.2,60.8 L89.2,61.5 L88.6,64 L86.8,63.4 Z" />
+    </group>
+    <path android:fillColor="#FF262626" android:pathData="M108,4.5a7.5,7.5 0 1,1 0,15a7.5,7.5 0 1,1 0,-15z" />
+    <path android:fillColor="#FF8E8E8E" android:pathData="M108,7a5,5 0 1,1 0,10a5,5 0 1,1 0,-10z" />
+    <path android:fillColor="#FFDADADA" android:pathData="M108,10a2,2 0 1,1 0,4a2,2 0 1,1 0,-4z" />
+</vector>
