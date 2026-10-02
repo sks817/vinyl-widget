@@ -156,9 +156,18 @@ class WideScene(
                               else { val hh = (b.width / ar).toInt(); Rect(0, (b.height - hh) / 2, b.width, (b.height + hh) / 2) }
                     c.drawBitmap(b, src, r, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
                 }
+                val art = ArtText(c, quirky, if (customFg) fg else null, sub, !night && kind != "rain")
+                if (art.needsScrim) {                               // 밝은 글자 뒤(양쪽 끝)만 옅게 눌러 줌
+                    val edge = r.height() * 1.6f
+                    c.drawRect(r.left, r.top, r.left + edge, r.bottom, Paint().apply {
+                        shader = android.graphics.LinearGradient(r.left, 0f, r.left + edge, 0f, 0x52000000, 0x00000000, android.graphics.Shader.TileMode.CLAMP)
+                    })
+                    c.drawRect(r.right - edge, r.top, r.right, r.bottom, Paint().apply {
+                        shader = android.graphics.LinearGradient(r.right, 0f, r.right - edge, 0f, 0x52000000, 0x00000000, android.graphics.Shader.TileMode.CLAMP)
+                    })
+                }
                 c.restore()
                 if (glassArt) GlassArt.draw(c, r, rad)
-                val art = ArtText(c, quirky, if (customFg) fg else null, sub, !night && kind != "rain")
                 val main = art.main; val soft = art.sub
                 fun ap(size: Float, tf: Typeface, col: Int, a: Paint.Align = Paint.Align.LEFT) =
                     Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = tf; color = col; textAlign = a }

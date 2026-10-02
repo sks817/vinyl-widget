@@ -174,6 +174,11 @@ class WeatherScene(
                     shader = android.graphics.LinearGradient(0f, scrimTop, 0f, card.bottom,
                         intArrayOf(0x00000000, 0x4D000000, 0x9E000000.toInt()), floatArrayOf(0f, 0.45f, 1f), android.graphics.Shader.TileMode.CLAMP)
                 })
+                // 밝은 날짜 글자 뒤(왼쪽 위)만 아주 옅게 눌러 줌 → 테두리 없이도 또렷
+                if (art.needsScrim) c.drawRect(card, Paint().apply {
+                    shader = android.graphics.RadialGradient(card.left, card.top, S * 0.8f,
+                        intArrayOf(0x52000000, 0x29000000, 0x00000000), floatArrayOf(0f, 0.5f, 1f), android.graphics.Shader.TileMode.CLAMP)
+                })
                 c.restore()
                 if (glassArt) GlassArt.draw(c, card, rad)
                 val m = S * 0.08f
@@ -210,6 +215,14 @@ class WeatherScene(
             }
             3 -> { // 하늘 원: 재킷과 같은 규칙으로 날씨·시간에 따라 바뀜
                 asset(Scenes.circle(kind, night, quirky), sq)
+                if (art.needsScrim) {                              // 날짜 뒤(원 위쪽)만 옅게 눌러 줌
+                    c.save(); c.clipPath(android.graphics.Path().apply { addOval(sq, android.graphics.Path.Direction.CW) })
+                    c.drawRect(sq, Paint().apply {
+                        shader = android.graphics.LinearGradient(0f, sq.top, 0f, sq.top + D * 0.55f,
+                            0x4D000000, 0x00000000, android.graphics.Shader.TileMode.CLAMP)
+                    })
+                    c.restore()
+                }
                 art.top(md, sq.centerX(), sq.top + D * 0.07f, ap(D * 0.27f, SERIF, art.main, Paint.Align.CENTER))
                 art.top(wk, sq.centerX(), sq.top + D * 0.35f, ap(D * 0.07f, SANS_M, art.sub, Paint.Align.CENTER))
                 bottomRow(d)
