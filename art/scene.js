@@ -2,6 +2,13 @@
 // kind: clear|cloudy|rain|snow, night: bool, fmt: sq|ci|pa|tent|icon
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
+// 병맛 모드: 굵은 잉크 외곽선 + 텐트 얼굴 + 하늘의 해·달·구름이 캐릭터
+let Q = false;
+const INK = '#2B2622';
+const OL = (w) => Q ? `stroke="${INK}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"` : '';
+const { ICONS } = require('./icons.js');
+const charIcon = (name, cx, cy, size) => `<svg x="${cx - size / 2}" y="${cy - size / 2}" width="${size}" height="${size}" viewBox="0 0 100 100">${ICONS[name]()}</svg>`;
+
 const PAL = {
   clear_d: { sky: ['#8ec9ea', '#cfe8f1', '#fbe7cc'], far: '#a9c3cf', mid: '#7fa596', pine: '#3f6b56', pine2: '#517f68', ground: ['#a7c788', '#88ad6f'], canvas: '#f4e8d0', canvasShade: '#e2cfab', door: '#c9b28a', haze: '#ffffff' },
   cloudy_d: { sky: ['#b7c4cf', '#d8dfe3', '#ece9e1'], far: '#b2bcc0', mid: '#8d9f98', pine: '#4a6457', pine2: '#5b7568', ground: ['#a3b495', '#8a9d7d'], canvas: '#eee4d0', canvasShade: '#d9cbb0', door: '#bfae8f', haze: '#ffffff' },
@@ -31,7 +38,7 @@ function pine(x, base, h, col, snow) {
   for (let i = 0; i < 3; i++) {
     const top = base - h + i * h * 0.24, bot = base - h * 0.08 - (2 - i) * h * 0.2;
     const ww = w * (0.55 + i * 0.25);
-    s += `<path d="M${x} ${top} L${x + ww / 2} ${bot} Q${x} ${bot + h * 0.05} ${x - ww / 2} ${bot} Z" fill="${col}" stroke="${col}" stroke-width="${h * 0.02}" stroke-linejoin="round"/>`;
+    s += `<path d="M${x} ${top} L${x + ww / 2} ${bot} Q${x} ${bot + h * 0.05} ${x - ww / 2} ${bot} Z" fill="${col}" ${Q ? OL(h * 0.035) : `stroke="${col}" stroke-width="${h * 0.02}" stroke-linejoin="round"`}/>`;
     if (snow) s += `<path d="M${x} ${top} L${x + ww * 0.2} ${top + (bot - top) * 0.4} Q${x} ${top + (bot - top) * 0.5} ${x - ww * 0.2} ${top + (bot - top) * 0.4} Z" fill="#f4f7fb" opacity=".92"/>`;
   }
   return s + `</g>`;
@@ -51,9 +58,9 @@ function bellTent(cx, base, w, p, lit, snow, uid, glow = true) {
   // 그림자
   s += `<ellipse cx="${cx}" cy="${base + h * 0.02}" rx="${w * 0.58}" ry="${h * 0.045}" fill="#000" opacity="${lit ? 0.18 : 0.12}"/>`;
   // 벽
-  s += `<path d="M${L} ${roofBase} L${R} ${roofBase} L${R - w * 0.01} ${base} L${L + w * 0.01} ${base} Z" fill="url(#${g})"/>`;
+  s += `<path d="M${L} ${roofBase} L${R} ${roofBase} L${R - w * 0.01} ${base} L${L + w * 0.01} ${base} Z" fill="url(#${g})" ${OL(w * 0.014)}/>`;
   // 지붕 (살짝 오목한 원뿔)
-  s += `<path d="M${cx} ${apex} Q${cx + w * 0.2} ${roofBase - h * 0.28} ${rr} ${roofBase} Q${cx} ${roofBase + h * 0.035} ${rl} ${roofBase} Q${cx - w * 0.2} ${roofBase - h * 0.28} ${cx} ${apex} Z" fill="url(#${g})"/>`;
+  s += `<path d="M${cx} ${apex} Q${cx + w * 0.2} ${roofBase - h * 0.28} ${rr} ${roofBase} Q${cx} ${roofBase + h * 0.035} ${rl} ${roofBase} Q${cx - w * 0.2} ${roofBase - h * 0.28} ${cx} ${apex} Z" fill="url(#${g})" ${OL(w * 0.014)}/>`;
   // 지붕 솔기 (패널 라인)
   for (const t of [-0.3, 0.3]) s += `<path d="M${cx} ${apex} Q${cx + w * t * 0.5} ${roofBase - h * 0.2} ${cx + w * t} ${roofBase + h * 0.01}" stroke="${p.canvasShade}" stroke-width="${w * 0.006}" fill="none" opacity=".9"/>`;
   // 처마 그림자 띠
@@ -98,6 +105,16 @@ function bellTent(cx, base, w, p, lit, snow, uid, glow = true) {
   // 걷어 묶은 문 자락
   s += `<path d="M${cx} ${dTop} L${cx - dw / 2} ${base} L${cx - dw * 0.78} ${base} Q${cx - dw * 0.45} ${roofBase} ${cx} ${dTop} Z" fill="${p.canvasShade}"/>`;
   s += `<path d="M${cx} ${dTop} L${cx + dw / 2} ${base} L${cx + dw * 0.78} ${base} Q${cx + dw * 0.45} ${roofBase} ${cx} ${dTop} Z" fill="${p.canvasShade}" opacity=".85"/>`;
+  // 병맛: 문(입)을 사이에 두고 벽에 눈·볼터치. 불 켜지면 행복하게 웃는 눈(^ ^)
+  if (Q) {
+    const ey = roofBase + h * 0.09, ex = w * 0.24, er = w * 0.032;
+    for (const sx of [-1, 1]) {
+      const x = cx + sx * ex;
+      s += lit ? `<path d="M${x - er * 1.3} ${ey + er * 0.4} Q${x} ${ey - er * 1.4} ${x + er * 1.3} ${ey + er * 0.4}" fill="none" ${OL(w * 0.016)}/>`
+               : `<circle cx="${x}" cy="${ey}" r="${er}" fill="${INK}"/><circle cx="${x - er * 0.3}" cy="${ey - er * 0.35}" r="${er * 0.3}" fill="#fff"/>`;
+      s += `<ellipse cx="${x + sx * w * 0.06}" cy="${ey + h * 0.06}" rx="${w * 0.035}" ry="${w * 0.018}" fill="#FF8A80" opacity=".75"/>`;
+    }
+  }
   // 꼭대기 폴 + 깃발
   s += `<line x1="${cx}" y1="${apex}" x2="${cx}" y2="${apex - h * 0.1}" stroke="#7a5233" stroke-width="${w * 0.012}" stroke-linecap="round"/>`;
   s += `<path d="M${cx} ${apex - h * 0.1} L${cx + w * 0.07} ${apex - h * 0.075} L${cx} ${apex - h * 0.05} Z" fill="#e0794f"/>`;
@@ -163,7 +180,10 @@ function clouds(W, H, y, n, col, op, seed, scale) {
   const r = rng(seed); let s = '';
   for (let i = 0; i < n; i++) {
     const cx = W * (0.08 + r() * 0.9), cy = y + (r() - 0.5) * H * 0.1, w = W * scale * (0.6 + r() * 0.6);
-    s += `<g opacity="${op}" fill="${col}"><ellipse cx="${cx}" cy="${cy}" rx="${w * 0.5}" ry="${w * 0.12}"/><circle cx="${cx - w * 0.14}" cy="${cy - w * 0.07}" r="${w * 0.15}"/><circle cx="${cx + w * 0.1}" cy="${cy - w * 0.11}" r="${w * 0.2}"/></g>`;
+    const shapes = `<ellipse cx="${cx}" cy="${cy}" rx="${w * 0.5}" ry="${w * 0.12}"/><circle cx="${cx - w * 0.14}" cy="${cy - w * 0.07}" r="${w * 0.15}"/><circle cx="${cx + w * 0.1}" cy="${cy - w * 0.11}" r="${w * 0.2}"/>`;
+    // 병맛: 같은 모양을 굵은 잉크로 한 번, 그 위에 색으로 한 번 → 바깥 윤곽선만 남음
+    if (Q) s += `<g opacity="${Math.min(1, op + 0.1)}"><g fill="${INK}" stroke="${INK}" stroke-width="${Math.max(4, w * 0.036)}">${shapes}</g><g fill="${col}">${shapes}</g></g>`;
+    else s += `<g opacity="${op}" fill="${col}">${shapes}</g>`;
   }
   return s;
 }
@@ -192,7 +212,8 @@ function grain(W, H, id, op) {
 }
 
 // ---------- 장면 ----------
-function scene(kind, night, fmt) {
+function scene(kind, night, fmt, quirky = false) {
+  Q = quirky;
   const key = `${kind}_${night ? 'n' : 'd'}`, p = PAL[key];
   const lit = night || kind === 'rain';
   const snowy = kind === 'snow';
@@ -200,7 +221,7 @@ function scene(kind, night, fmt) {
   const [W, H] = dims, U = Math.min(W, H) / 560;   // 기준 단위
   const pa = fmt === 'pa';
   const horizon = pa ? H * 0.76 : fmt === 'sq' ? H * 0.6 : H * 0.70;
-  const id = `${key}${fmt}`;
+  const id = `${key}${fmt}${Q ? 'q' : ''}`;
   let s = `<defs><linearGradient id="sky${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.sky[0]}"/><stop offset=".62" stop-color="${p.sky[1]}"/><stop offset="1" stop-color="${p.sky[2]}"/></linearGradient>
     <linearGradient id="gr${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.ground[0]}"/><stop offset="1" stop-color="${p.ground[1]}"/></linearGradient>
     <radialGradient id="sun${id}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff6d8" stop-opacity=".9"/><stop offset=".35" stop-color="#ffe7a8" stop-opacity=".45"/><stop offset="1" stop-color="#ffe7a8" stop-opacity="0"/></radialGradient></defs>`;
@@ -208,7 +229,10 @@ function scene(kind, night, fmt) {
 
   // 해·달 위치: 글자가 없는 쪽 (재킷=오른쪽 위, 원=오른쪽, 파노라마=가운데 오른쪽)
   const sx = pa ? W * 0.37 : fmt === 'ci' ? W * 0.8 : W * 0.85, sy = pa ? H * 0.3 : fmt === 'ci' ? H * 0.4 : H * 0.15;
-  if (night && kind !== 'rain') {
+  const cs = pa ? H * 0.5 : W * 0.26;          // 하늘 캐릭터 크기
+  if (Q) {
+    if (night && kind !== 'rain' && kind !== 'cloudy') s += stars(W, H, pa ? 120 : 70, 7, horizon * 0.85);
+  } else if (night && kind !== 'rain') {
     if (kind !== 'cloudy') s += stars(W, H, pa ? 120 : 70, 7, horizon * 0.85);
     s += `<defs><radialGradient id="mh${id}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff4cc" stop-opacity=".28"/><stop offset="1" stop-color="#fff4cc" stop-opacity="0"/></radialGradient></defs><circle cx="${sx}" cy="${sy}" r="${60 * U}" fill="url(#mh${id})"/>`;
     s += `<mask id="mm${id}"><rect width="${W}" height="${H}" fill="#fff"/><circle cx="${sx + 9 * U}" cy="${sy - 6 * U}" r="${15 * U}" fill="#000"/></mask>`;
@@ -216,16 +240,25 @@ function scene(kind, night, fmt) {
   } else if (kind === 'clear') {
     s += `<circle cx="${sx}" cy="${sy}" r="${90 * U}" fill="url(#sun${id})"/><circle cx="${sx}" cy="${sy}" r="${24 * U}" fill="#fff3cf"/>`;
   }
+  if (Q) {   // 해·달 대신 캐릭터 (구름·비·눈은 아래 구름 위에 한 번 더)
+    const name = kind === 'clear' ? (night ? 'clear_night' : 'clear_day') : kind === 'cloudy' ? (night ? 'partly_night' : 'cloudy') : kind === 'rain' ? 'rain' : (night ? 'clear_night' : 'cloudy');
+    s += `<g data-sky="${name}"></g>`;
+  }
   if (kind === 'clear' && !night) s += clouds(W, H, H * 0.33, pa ? 4 : 2, '#ffffff', 0.85, 3, pa ? 0.09 : 0.3);
   if (kind === 'cloudy') s += clouds(W, H, H * 0.18, pa ? 9 : 4, night ? '#4a5268' : '#ffffff', night ? 0.75 : 0.9, 11, pa ? 0.12 : 0.42) + clouds(W, H, H * 0.36, pa ? 7 : 3, night ? '#3b4256' : '#f3f5f6', night ? 0.8 : 0.85, 21, pa ? 0.1 : 0.36);
   if (kind === 'rain') s += clouds(W, H, H * 0.12, pa ? 10 : 5, night ? '#2a3141' : '#5e6c79', 0.85, 31, pa ? 0.14 : 0.5);
   if (kind === 'snow') s += clouds(W, H, H * 0.14, pa ? 6 : 3, night ? '#3a4670' : '#ffffff', 0.55, 41, pa ? 0.12 : 0.45);
 
+  // 병맛: 하늘 캐릭터는 구름보다 앞에
+  if (Q) {
+    const name = kind === 'clear' ? (night ? 'clear_night' : 'clear_day') : kind === 'cloudy' ? (night ? 'partly_night' : 'cloudy') : kind === 'rain' ? 'rain' : (night ? 'clear_night' : 'cloudy');
+    s += charIcon(name, sx, pa ? H * 0.32 : sy + cs * 0.12, cs);
+  }
   // 산 (먼 → 가까운, 대기원근)
-  s += `<path d="${ridge(W, horizon - (pa ? H * 0.12 : H * 0.17), pa ? H * 0.1 : H * 0.12, 5, W / (pa ? 9 : 5), H)}" fill="${p.far}"/>`;
+  s += `<path d="${ridge(W, horizon - (pa ? H * 0.12 : H * 0.17), pa ? H * 0.1 : H * 0.12, 5, W / (pa ? 9 : 5), H)}" fill="${p.far}" ${OL(3 * U)}/>`;
   if (snowy) s += `<path d="${ridge(W, horizon - (pa ? H * 0.12 : H * 0.17), pa ? H * 0.1 : H * 0.12, 5, W / (pa ? 9 : 5), H)}" fill="#fff" opacity="${night ? 0.12 : 0.35}"/>`;
   s += `<rect y="${horizon - H * 0.12}" width="${W}" height="${H * 0.14}" fill="${p.haze}" opacity="${night ? 0.08 : 0.18}"/>`;
-  s += `<path d="${ridge(W, horizon - (pa ? H * 0.04 : H * 0.07), pa ? H * 0.05 : H * 0.07, 9, W / (pa ? 12 : 6), H)}" fill="${p.mid}"/>`;
+  s += `<path d="${ridge(W, horizon - (pa ? H * 0.04 : H * 0.07), pa ? H * 0.05 : H * 0.07, 9, W / (pa ? 12 : 6), H)}" fill="${p.mid}" ${OL(3 * U)}/>`;
 
   // 숲 (뒤쪽 소나무 줄)
   const r = rng(17);
@@ -238,7 +271,7 @@ function scene(kind, night, fmt) {
     s += pine(x, horizon + H * 0.01, hh, p.pine2, snowy);
   }
   // 땅
-  s += `<path d="${hill(W, horizon, pa ? H * 0.04 : H * 0.05, H)}" fill="url(#gr${id})"/>`;
+  s += `<path d="${hill(W, horizon, pa ? H * 0.04 : H * 0.05, H)}" fill="url(#gr${id})" ${OL(3 * U)}/>`;
 
   // 캠프: 텐트 + 가랜드 + 모닥불 + 의자 + 앞쪽 소나무
   const tw = pa ? H * 0.46 : W * 0.34;
@@ -259,6 +292,7 @@ function scene(kind, night, fmt) {
   s += campfire(fx, base + tw * 0.04, fs, lit && kind !== 'rain' || night, id);
   if (!ci) s += chair(fx - fs * 2.4, base + tw * 0.06, fs * 1.5, night ? '#b8563a' : '#d9734f');
   s += lantern(campX + tw * 0.62, base + tw * 0.04, tw * 0.42, lit);
+  if (Q && snowy) { const ss = tw * 0.42; s += charIcon('snow', fx + fs * (ci ? 2.6 : 2.2), base + tw * 0.05 - ss * 0.46, ss); }
   // 앞쪽 왼쪽 작은 소나무 (파노라마는 양 끝)
 
   if (kind === 'rain') s += rain(W, H, pa ? 140 : 70, 51, night);
@@ -269,12 +303,13 @@ function scene(kind, night, fmt) {
 }
 
 // 텐트 단독 (배경 투명). 2×2 '불 켜진 텐트'는 지붕·벽 위에 날짜를 씀 → 가랜드·모닥불 없이 깔끔하게
-function tentOnly(lit, fmt) {
+function tentOnly(lit, fmt, quirky = false) {
+  Q = quirky;
   const p = lit ? PAL.clear_n : PAL.clear_d;
   const big = fmt === 'tent';
   const W = big ? 560 : 320, H = big ? 350 : 200;
   const w = W * 0.86, base = H * 0.97;
-  const t = bellTent(W / 2, base, w, p, lit, false, `t${lit}${fmt}`, false);
+  const t = bellTent(W / 2, base, w, p, lit, false, `t${lit}${fmt}${Q ? 'q' : ''}`, false);
   // 높이에 맞게 viewBox 조정 (꼭대기 폴까지)
   const top = t.apex - t.h * 0.12;
   const s = t.svg + `<rect x="${W * 0.04}" y="${base - 1}" width="${W * 0.92}" height="${H * 0.025}" rx="${H * 0.0125}" fill="${lit ? '#7a5a34' : '#8aa86f'}" opacity=".7"/>`;

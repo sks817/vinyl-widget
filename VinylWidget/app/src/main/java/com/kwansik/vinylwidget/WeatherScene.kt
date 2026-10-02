@@ -164,7 +164,7 @@ class WeatherScene(
                 if (artShadow) GlassArt.shadow(c, card, rad)
                 c.save()
                 c.clipPath(android.graphics.Path().apply { addRoundRect(card, rad, rad, android.graphics.Path.Direction.CW) })
-                cover(Scenes.jacket(kind, night), card)
+                cover(Scenes.jacket(kind, night, quirky), card)
                 // 아래쪽 절반: 위에서 아래로 짙어지는 어둠막 → 흰 기온 글자가 어떤 그림 위에서도 읽힘
                 val scrimTop = card.bottom - card.height() * 0.52f
                 c.drawRect(card.left, scrimTop, card.right, card.bottom, Paint().apply {
@@ -203,7 +203,7 @@ class WeatherScene(
             }
             2 -> { // 불 켜진 텐트: 날짜를 텐트 천 위에
                 val box = RectF(areaL, sq.top, areaL + areaW, sq.bottom)
-                val tent = if (lit) R.drawable.w_tent_glow else R.drawable.w_tent_day   // 낮엔 불 꺼진 텐트
+                val tent = Scenes.tent(lit, quirky)   // 낮엔 불 꺼진 텐트
                 val r = fitBottom(tent, box)
                 asset(tent, r)
                 text(wk, r.centerX(), r.top + r.height() * 0.36f, r.width() * 0.055f, SANS_M, BROWN_SUB, A.C)
@@ -211,7 +211,7 @@ class WeatherScene(
                 bottomRow(d)
             }
             3 -> { // 하늘 원: 재킷과 같은 규칙으로 날씨·시간에 따라 바뀜
-                asset(Scenes.circle(kind, night), sq)
+                asset(Scenes.circle(kind, night, quirky), sq)
                 val main = if (darkText) 0xFF23262E.toInt() else CREAM
                 val sub = if (darkText) 0xFF3E434D.toInt() else CREAM_SUB
                 text(md, sq.centerX(), sq.top + D * 0.07f, D * 0.27f, SERIF, main, A.C)
@@ -222,37 +222,24 @@ class WeatherScene(
                 text(md, areaL + areaW * 0.02f, sq.top, D * 0.42f, SERIF, fg)
                 text(wk, areaL + areaW * 0.04f, sq.top + D * 0.50f, D * 0.10f, SANS_M, sub)
                 val box = RectF(areaL + areaW * 0.40f, sq.top + D * 0.45f, areaL + areaW, sq.bottom)
-                val icon = if (lit) R.drawable.w_tent_icon else R.drawable.w_tent_icon_day
+                val icon = Scenes.tentIcon(lit, quirky)
                 asset(icon, fitBottom(icon, box))
                 bottomRow(d)
             }
             8 -> { // 캐릭터 (병맛): 큰 캐릭터 + 말풍선 한마디 + 큰 기온
                 val box = RectF(pad, pad, W - pad, H - pad)
                 val S = min(box.width(), box.height())
-                val ink = 0xFF2B2622.toInt()
                 val black = Typeface.create("sans-serif-black", Typeface.NORMAL)
                 // 왼쪽 위: 날짜·요일
                 text(md, box.left + S * 0.04f, box.top + S * 0.03f, S * 0.2f, black, fg)
                 text(wk, box.left + S * 0.05f, box.top + S * 0.25f, S * 0.08f, SANS_M, sub)
-                // 오른쪽 위: 큰 캐릭터 (병맛 테마를 꺼도 이 디자인은 캐릭터)
-                val cs = S * 0.54f
-                funIcon(d.iconFun(), box.right - cs / 2, box.top + cs / 2 - S * 0.02f, cs)
-                // 가운데: 말풍선 (꼬리는 캐릭터 쪽)
-                val q = Quips.of(d)
-                val qp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.074f; typeface = SANS; color = ink; textAlign = Paint.Align.CENTER }
-                val bw = min(box.width(), qp.measureText(q) + S * 0.12f); val bh = S * 0.15f
-                val bt = box.top + S * 0.56f
-                val bubble = RectF(box.centerX() - bw / 2, bt, box.centerX() + bw / 2, bt + bh)
-                val fillP = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() }
-                val lineP = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ink; style = Paint.Style.STROKE; strokeWidth = S * 0.014f; strokeJoin = Paint.Join.ROUND }
-                val tail = android.graphics.Path().apply {
-                    moveTo(bubble.right - bw * 0.3f, bubble.top + 1); lineTo(bubble.right - bw * 0.12f, bubble.top - S * 0.07f); lineTo(bubble.right - bw * 0.18f, bubble.top + 1); close()
-                }
-                c.drawPath(tail, fillP); c.drawPath(tail, lineP)
-                c.drawRoundRect(bubble, bh / 2, bh / 2, fillP); c.drawRoundRect(bubble, bh / 2, bh / 2, lineP)
-                c.drawRect(bubble.right - bw * 0.29f, bubble.top + lineP.strokeWidth / 2, bubble.right - bw * 0.19f, bubble.top + lineP.strokeWidth * 1.5f, fillP)
-                val fm = qp.fontMetrics
-                c.drawText(q, bubble.centerX(), bubble.centerY() - (fm.ascent + fm.descent) / 2, qp)
+                // 오른쪽: 큰 캐릭터 (병맛 테마를 꺼도 이 디자인은 캐릭터)
+                val cs = S * 0.5f
+                funIcon(d.iconFun(), box.right - cs / 2 + S * 0.02f, box.top + S * 0.06f + cs / 2, cs)
+                // 왼쪽: 캐릭터가 하는 한마디 (말풍선, 꼬리는 캐릭터 쪽)
+                val qp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = S * 0.07f; typeface = SANS_M; color = 0xFF3A3330.toInt() }
+                val lines = Bubble.wrap(Quips.of(d), qp, S * 0.5f - S * 0.07f * 1.7f, 2)
+                Bubble.draw(c, box.left + S * 0.03f, box.top + S * 0.37f, lines, qp, tailRight = true)
                 // 아래: 기온(크게) + 날씨·최저/최고
                 val msg = d.message()
                 val by = box.bottom - S * 0.02f
@@ -278,27 +265,20 @@ class WeatherScene(
     }
 }
 
-/** 날씨(맑음·구름·비·눈) × 낮/밤 → 그림 파일 */
+/** 날씨(맑음·구름·비·눈) × 낮/밤 → 그림 파일. quirky = 병맛 캠핑장 (굵은 선, 얼굴 있는 텐트, 캐릭터 해·달) */
 object Scenes {
     private fun key(kind: String, night: Boolean) = kind + if (night) "_n" else "_d"
-    fun jacket(kind: String, night: Boolean) = when (key(kind, night)) {
-        "cloudy_d" -> R.drawable.w_sc_cloudy_day; "rain_d" -> R.drawable.w_sc_rain_day; "snow_d" -> R.drawable.w_sc_snow_day
-        "clear_n" -> R.drawable.w_sc_clear_night; "cloudy_n" -> R.drawable.w_sc_cloudy_night
-        "rain_n" -> R.drawable.w_sc_rain_night; "snow_n" -> R.drawable.w_sc_snow_night
-        else -> R.drawable.w_sc_clear_day
-    }
-    fun circle(kind: String, night: Boolean) = when (key(kind, night)) {
-        "cloudy_d" -> R.drawable.w_ci_cloudy_day; "rain_d" -> R.drawable.w_ci_rain_day; "snow_d" -> R.drawable.w_ci_snow_day
-        "clear_n" -> R.drawable.w_ci_clear_night; "cloudy_n" -> R.drawable.w_ci_cloudy_night
-        "rain_n" -> R.drawable.w_ci_rain_night; "snow_n" -> R.drawable.w_ci_snow_night
-        else -> R.drawable.w_ci_clear_day
-    }
-    fun panorama(kind: String, night: Boolean) = when (key(kind, night)) {
-        "cloudy_d" -> R.drawable.w_pa_cloudy_day; "rain_d" -> R.drawable.w_pa_rain_day; "snow_d" -> R.drawable.w_pa_snow_day
-        "clear_n" -> R.drawable.w_pa_clear_night; "cloudy_n" -> R.drawable.w_pa_cloudy_night
-        "rain_n" -> R.drawable.w_pa_rain_night; "snow_n" -> R.drawable.w_pa_snow_night
-        else -> R.drawable.w_pa_clear_day
-    }
+    fun jacket(kind: String, night: Boolean, quirky: Boolean = false) = if (quirky) when (key(kind, night)) { "clear_n" -> R.drawable.w_scq_clear_night; "cloudy_d" -> R.drawable.w_scq_cloudy_day; "cloudy_n" -> R.drawable.w_scq_cloudy_night; "rain_d" -> R.drawable.w_scq_rain_day; "rain_n" -> R.drawable.w_scq_rain_night; "snow_d" -> R.drawable.w_scq_snow_day; "snow_n" -> R.drawable.w_scq_snow_night; else -> R.drawable.w_scq_clear_day }
+        else when (key(kind, night)) { "clear_n" -> R.drawable.w_sc_clear_night; "cloudy_d" -> R.drawable.w_sc_cloudy_day; "cloudy_n" -> R.drawable.w_sc_cloudy_night; "rain_d" -> R.drawable.w_sc_rain_day; "rain_n" -> R.drawable.w_sc_rain_night; "snow_d" -> R.drawable.w_sc_snow_day; "snow_n" -> R.drawable.w_sc_snow_night; else -> R.drawable.w_sc_clear_day }
+    fun circle(kind: String, night: Boolean, quirky: Boolean = false) = if (quirky) when (key(kind, night)) { "clear_n" -> R.drawable.w_ciq_clear_night; "cloudy_d" -> R.drawable.w_ciq_cloudy_day; "cloudy_n" -> R.drawable.w_ciq_cloudy_night; "rain_d" -> R.drawable.w_ciq_rain_day; "rain_n" -> R.drawable.w_ciq_rain_night; "snow_d" -> R.drawable.w_ciq_snow_day; "snow_n" -> R.drawable.w_ciq_snow_night; else -> R.drawable.w_ciq_clear_day }
+        else when (key(kind, night)) { "clear_n" -> R.drawable.w_ci_clear_night; "cloudy_d" -> R.drawable.w_ci_cloudy_day; "cloudy_n" -> R.drawable.w_ci_cloudy_night; "rain_d" -> R.drawable.w_ci_rain_day; "rain_n" -> R.drawable.w_ci_rain_night; "snow_d" -> R.drawable.w_ci_snow_day; "snow_n" -> R.drawable.w_ci_snow_night; else -> R.drawable.w_ci_clear_day }
+    fun panorama(kind: String, night: Boolean, quirky: Boolean = false) = if (quirky) when (key(kind, night)) { "clear_n" -> R.drawable.w_paq_clear_night; "cloudy_d" -> R.drawable.w_paq_cloudy_day; "cloudy_n" -> R.drawable.w_paq_cloudy_night; "rain_d" -> R.drawable.w_paq_rain_day; "rain_n" -> R.drawable.w_paq_rain_night; "snow_d" -> R.drawable.w_paq_snow_day; "snow_n" -> R.drawable.w_paq_snow_night; else -> R.drawable.w_paq_clear_day }
+        else when (key(kind, night)) { "clear_n" -> R.drawable.w_pa_clear_night; "cloudy_d" -> R.drawable.w_pa_cloudy_day; "cloudy_n" -> R.drawable.w_pa_cloudy_night; "rain_d" -> R.drawable.w_pa_rain_day; "rain_n" -> R.drawable.w_pa_rain_night; "snow_d" -> R.drawable.w_pa_snow_day; "snow_n" -> R.drawable.w_pa_snow_night; else -> R.drawable.w_pa_clear_day }
+
+    fun tent(lit: Boolean, quirky: Boolean) = if (quirky) { if (lit) R.drawable.w_tentq_glow else R.drawable.w_tentq_day }
+        else { if (lit) R.drawable.w_tent_glow else R.drawable.w_tent_day }
+    fun tentIcon(lit: Boolean, quirky: Boolean) = if (quirky) { if (lit) R.drawable.w_tentq_icon else R.drawable.w_tentq_icon_day }
+        else { if (lit) R.drawable.w_tent_icon else R.drawable.w_tent_icon_day }
 }
 
 /** 그림 파일은 한 번만 읽어서 재사용 */

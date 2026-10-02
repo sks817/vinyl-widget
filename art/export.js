@@ -9,6 +9,11 @@ for (const k of ['clear', 'cloudy', 'rain', 'snow']) for (const n of [false, tru
 }
 const { ICONS, iconSvg } = require('./icons.js');
 for (const n of Object.keys(ICONS)) jobs.push([`w_fun_${n}`, iconSvg(n, 256)]);
+for (const k of ['clear', 'cloudy', 'rain', 'snow']) for (const n of [false, true]) {
+  const tag = `${k}_${n ? 'night' : 'day'}`;
+  jobs.push([`w_scq_${tag}`, scene(k, n, 'sq', true)], [`w_ciq_${tag}`, scene(k, n, 'ci', true)], [`w_paq_${tag}`, scene(k, n, 'pa', true)]);
+}
+jobs.push(['w_tentq_day', tentOnly(false, 'tent', true)], ['w_tentq_glow', tentOnly(true, 'tent', true)], ['w_tentq_icon_day', tentOnly(false, 'icon', true)], ['w_tentq_icon', tentOnly(true, 'icon', true)]);
 jobs.push(['w_tent_day', tentOnly(false, 'tent')], ['w_tent_glow', tentOnly(true, 'tent')], ['w_tent_icon_day', tentOnly(false, 'icon')], ['w_tent_icon', tentOnly(true, 'icon')]);
 (async () => {
   const b = await chromium.launch(); const p = await b.newPage();

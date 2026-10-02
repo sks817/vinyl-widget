@@ -152,34 +152,20 @@ class WideScene(
             }
             4 -> { // ---- 캐릭터 (병맛): [큰 캐릭터] [말풍선 한마디 / 날짜·날씨] [큰 기온] ----
                 val h = H
-                val ink = 0xFF2B2622.toInt()
                 val black = Typeface.create("sans-serif-black", Typeface.NORMAL)
                 val cs = h * 0.92f
                 funIcon(d.iconFun(), h * 0.06f + cs / 2, h / 2, cs)
-                val x = h * 0.06f + cs + h * 0.1f
+                val x = h * 0.06f + cs + h * 0.14f
                 val right = W - h * 0.24f
                 val tp = paint(h * 0.46f, black, fg, Paint.Align.RIGHT)
                 val tw = if (msg == null) tp.measureText(d.tempText()) else 0f
                 if (msg == null) textMid(d.tempText(), right, h * 0.5f, tp)
                 val maxW = right - tw - h * 0.25f - x
-                // 말풍선 (꼬리는 왼쪽 캐릭터 쪽)
-                val q = msg ?: Quips.of(d)
-                val qp = paint(small(h * 0.16f), SANS, ink)
-                val bh = h * 0.3f
-                var bw = qp.measureText(q) + h * 0.32f
-                if (bw > maxW) bw = maxW
-                val bubble = RectF(x, h * 0.13f, x + bw, h * 0.13f + bh)
-                val fillP = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() }
-                val lineP = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ink; style = Paint.Style.STROKE; strokeWidth = h * 0.028f; strokeJoin = Paint.Join.ROUND }
-                val tail = Path().apply {
-                    moveTo(bubble.left + 1, bubble.centerY() - bh * 0.15f); lineTo(bubble.left - h * 0.09f, bubble.centerY() + bh * 0.25f); lineTo(bubble.left + 1, bubble.centerY() + bh * 0.2f); close()
-                }
-                c.drawPath(tail, fillP); c.drawPath(tail, lineP)
-                c.drawRoundRect(bubble, bh / 2, bh / 2, fillP); c.drawRoundRect(bubble, bh / 2, bh / 2, lineP)
-                c.drawRect(bubble.left + lineP.strokeWidth / 2, bubble.centerY() - bh * 0.12f, bubble.left + lineP.strokeWidth * 1.6f, bubble.centerY() + bh * 0.17f, fillP)
-                c.save(); c.clipRect(bubble.left, bubble.top, bubble.right - h * 0.12f, bubble.bottom)
-                textMid(q, bubble.left + h * 0.16f, bubble.centerY(), qp)
-                c.restore()
+                // 캐릭터가 하는 한마디 (말풍선, 꼬리는 왼쪽 캐릭터 쪽). 넘치면 …으로 줄임
+                val qp = paint(small(h * 0.155f), SANS_M, 0xFF3A3330.toInt())
+                qp.clearShadowLayer()
+                val lines = Bubble.wrap(msg ?: Quips.of(d), qp, maxW - qp.textSize * 1.7f, 1)
+                Bubble.draw(c, x, h * 0.1f, lines, qp, tailRight = false)
                 // 아래 줄: 날짜·요일 · 날씨·최저/최고
                 val range = d.rangeText().replace(" ", "")
                 val line = if (msg != null) "$md $wk" else "$md $wk · ${d.cond()}${if (range.isEmpty()) "" else " $range"}"
@@ -195,7 +181,7 @@ class WideScene(
                 val rad = h * (if (corner < 0) 30 else corner) / 100f        // 모서리: 높이의 % (기본 30)
                 if (artShadow) GlassArt.shadow(c, r, rad)
                 c.save(); c.clipPath(Path().apply { addRoundRect(r, rad, rad, Path.Direction.CW) })
-                Assets.get(ctx, Scenes.panorama(kind, night))?.let { b ->
+                Assets.get(ctx, Scenes.panorama(kind, night, quirky))?.let { b ->
                     // 위젯 비율에 맞게 가운데를 잘라서(center-crop) 채움
                     val ar = r.width() / r.height(); val br = b.width.toFloat() / b.height
                     val src = if (br > ar) { val w = (b.height * ar).toInt(); Rect((b.width - w) / 2, 0, (b.width + w) / 2, b.height) }
@@ -228,7 +214,7 @@ class WideScene(
             else -> { // ---- 텐트 + 날짜 ----
                 val h = H
                 var x = h * 0.1f
-                val res = if (lit) R.drawable.w_tent_glow else R.drawable.w_tent_day
+                val res = Scenes.tent(lit, quirky)
                 Assets.get(ctx, res)?.let { b ->
                     val th = h * 0.62f; val tw = th * b.width / b.height
                     c.drawBitmap(b, null, RectF(x, (h - th) / 2, x + tw, (h + th) / 2), Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
