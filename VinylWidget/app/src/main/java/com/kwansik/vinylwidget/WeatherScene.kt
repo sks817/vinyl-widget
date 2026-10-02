@@ -21,8 +21,15 @@ import kotlin.math.min
  */
 class WeatherScene(
     private val ctx: Context, wDp: Float, hDp: Float,
-    private val fg: Int, private val sub: Int = fg, private val accent: Int = fg
+    private val fg: Int, private val sub: Int = fg, private val accent: Int = fg,
+    private val shadow: Int = 0
 ) {
+    /** 바탕 없이 배경화면 위에 쓰는 글자(fg/sub 색)에만 옅은 그림자 */
+    private fun Paint.shade(): Paint {
+        if (shadow != 0 && (color == fg || color == sub)) setShadowLayer(textSize * 0.14f, 0f, textSize * 0.03f, shadow)
+        return this
+    }
+
 
     private val k: Float          // dp당 픽셀 (그림이 너무 커지지 않게 최대 720px로 제한)
     val bitmap: Bitmap
@@ -65,14 +72,14 @@ class WeatherScene(
         val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = size; typeface = tf; color = col
             textAlign = when (a) { A.L -> Paint.Align.LEFT; A.C -> Paint.Align.CENTER; A.R -> Paint.Align.RIGHT }
-        }
+        }.shade()
         c.drawText(s, x, yTop - p.fontMetrics.ascent, p)
     }
 
     private val SANS_R = Typeface.create("sans-serif", Typeface.NORMAL)
 
     private fun textMid(s: String, x: Float, yMid: Float, size: Float, tf: Typeface, col: Int) {
-        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = tf; color = col; textAlign = Paint.Align.CENTER }
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = tf; color = col; textAlign = Paint.Align.CENTER }.shade()
         val fm = p.fontMetrics
         c.drawText(s, x, yMid - (fm.ascent + fm.descent) / 2f, p)
     }

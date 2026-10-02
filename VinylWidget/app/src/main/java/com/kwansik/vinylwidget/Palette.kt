@@ -1,5 +1,7 @@
 package com.kwansik.vinylwidget
 
+import android.app.WallpaperColors
+import android.app.WallpaperManager
 import android.content.Context
 import android.content.res.Configuration
 import android.widget.RemoteViews
@@ -16,12 +18,31 @@ object Palette {
     fun night(ctx: Context) =
         (ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 
-    /** 위젯 바탕이 밝은가 (유리는 다크 모드가 아니면 밝음) */
-    fun lightBg(ctx: Context, s: WidgetStyle) = if (s.glass) !night(ctx) else s.white
+    /** 바탕 없음(투명도 100%): 글자가 배경화면 위에 바로 놓임 */
+    fun bgHidden(s: WidgetStyle) = s.transparency >= 100
+
+    /** 배경화면이 밝아서 어두운 글자가 어울리는가 (시스템이 배경화면을 보고 알려주는 힌트) */
+    fun wallpaperWantsDarkText(ctx: Context): Boolean = try {
+        val c = WallpaperManager.getInstance(ctx).getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
+        c != null && (c.colorHints and WallpaperColors.HINT_SUPPORTS_DARK_TEXT) != 0
+    } catch (e: Exception) {
+        false
+    }
+
+    /** 바탕 없이 배경화면 위에 쓸 때 쓰는 자동 색 (어두운 글자인지) */
+    private fun onWallpaperDark(ctx: Context, s: WidgetStyle) = s.fg == AUTO && bgHidden(s) && wallpaperWantsDarkText(ctx)
+
+    /** 바탕 없이 그린 글자가 어떤 배경화면에서도 읽히도록 까는 옅은 그림자 색 (0 = 그림자 없음) */
+    fun shadow(ctx: Context, s: WidgetStyle): Int = when {
+        !bgHidden(s) -> 0
+        s.fg == AUTO -> if (wallpaperWantsDarkText(ctx)) 0x40FFFFFF else 0x59000000
+        else -> 0x40000000
+    }
 
     /** 주 글자색 */
     fun text(ctx: Context, s: WidgetStyle): Int = when {
         s.fg != AUTO -> s.fg
+        bgHidden(s) -> ctx.getColor(if (onWallpaperDark(ctx, s)) android.R.color.system_neutral1_900 else android.R.color.system_neutral1_10)
         s.glass -> ctx.getColor(R.color.glass_text)
         s.white -> ctx.getColor(android.R.color.system_neutral1_900)
         else -> ctx.getColor(android.R.color.system_neutral1_10)
@@ -30,6 +51,7 @@ object Palette {
     /** 보조 글자색 (가수 이름, 최저/최고 기온 등) */
     fun sub(ctx: Context, s: WidgetStyle): Int = when {
         s.fg != AUTO -> (s.fg and 0x00FFFFFF) or (0xB3 shl 24)
+        bgHidden(s) -> ctx.getColor(if (onWallpaperDark(ctx, s)) android.R.color.system_neutral2_700 else android.R.color.system_neutral2_100)
         s.glass -> ctx.getColor(R.color.glass_sub)
         s.white -> ctx.getColor(android.R.color.system_neutral2_600)
         else -> ctx.getColor(android.R.color.system_neutral2_200)
@@ -38,6 +60,7 @@ object Palette {
     /** 버튼·아이콘 색 */
     fun accent(ctx: Context, s: WidgetStyle): Int = when {
         s.fg != AUTO -> s.fg
+        bgHidden(s) -> ctx.getColor(if (onWallpaperDark(ctx, s)) android.R.color.system_accent1_700 else android.R.color.system_accent1_100)
         s.glass -> ctx.getColor(R.color.glass_accent)
         s.white -> ctx.getColor(android.R.color.system_accent1_600)
         else -> ctx.getColor(android.R.color.system_accent1_200)
@@ -68,7 +91,7 @@ object Palette {
      * 런처가 그릴 때 다크 모드·배경화면 색이 바뀌어도 앱을 다시 그리지 않고 따라감
      */
     fun setIcon(ctx: Context, rv: RemoteViews, id: Int, icon: Int, s: WidgetStyle) {
-        if (s.glass && s.fg == AUTO) {
+        if (s.glass && s.fg == AUTO && !bgHidden(s)) {
             rv.setImageViewResource(id, AUTO_ICONS[icon] ?: icon)
             rv.setInt(id, "setColorFilter", 0)
         } else {
@@ -79,7 +102,7 @@ object Palette {
 
     /** 글자 색. 유리 + 자동이면 시스템 색 자원으로 지정해 런처 쪽에서 저절로 바뀜 */
     fun setTextColor(ctx: Context, rv: RemoteViews, id: Int, s: WidgetStyle, sub: Boolean = false) {
-        if (s.glass && s.fg == AUTO) {
+        if (s.glass && s.fg == AUTO && !bgHidden(s)) {
             rv.setColorStateList(id, "setTextColor", if (sub) R.color.glass_sub else R.color.glass_text)
         } else {
             rv.setTextColor(id, if (sub) sub(ctx, s) else text(ctx, s))
@@ -88,5 +111,5 @@ object Palette {
 
     /** 다크 모드·배경화면 색이 바뀌었는지 알아보는 값 */
     fun signature(ctx: Context): String =
-        "${night(ctx)}|${ctx.getColor(R.color.glass_accent)}|${ctx.getColor(R.color.glass_fill)}"
+        "${night(ctx)}|${ctx.getColor(R.color.glass_accent)}|${ctx.getColor(R.color.glass_fill)}|${wallpaperWantsDarkText(ctx)}"
 }

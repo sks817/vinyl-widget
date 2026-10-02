@@ -20,8 +20,13 @@ data class WidgetStyle(
 object KindConfig {
     private fun isMusic(k: Kind) = k == Kind.MUSIC || k == Kind.MUSIC_WIDE
 
-    /** 기본값: 어떤 배경화면에도 어울리도록 유리 카드 + 자동 색 */
-    fun default(k: Kind) = WidgetStyle(white = false, transparency = 0, fg = Palette.AUTO, design = 1, glass = true)
+    /**
+     * 기본값: 자동 색. 레코드 위젯은 유리 카드,
+     * 날씨·날짜 위젯은 바탕 없이 그림과 글자만 배경화면 위에 (요즘 투명 위젯 문법)
+     */
+    fun default(k: Kind) = WidgetStyle(
+        white = false, transparency = if (isMusic(k)) 0 else 100, fg = Palette.AUTO, design = 1, glass = true
+    )
 
     fun provider(k: Kind): Class<*> = when (k) {
         Kind.MUSIC -> SpinWidgetProvider::class.java

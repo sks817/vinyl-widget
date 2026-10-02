@@ -21,8 +21,15 @@ import kotlin.math.min
  */
 class WideScene(
     private val ctx: Context, wDp: Float, hDp: Float,
-    private val fg: Int, private val sub: Int = fg, private val accent: Int = fg
+    private val fg: Int, private val sub: Int = fg, private val accent: Int = fg,
+    private val shadow: Int = 0
 ) {
+    /** 바탕 없이 배경화면 위에 쓰는 글자(fg/sub 색)에만 옅은 그림자 */
+    private fun Paint.shade(): Paint {
+        if (shadow != 0 && (color == fg || color == sub)) setShadowLayer(textSize * 0.14f, 0f, textSize * 0.03f, shadow)
+        return this
+    }
+
     private val k: Float
     val bitmap: Bitmap
     private val c: Canvas
@@ -43,7 +50,7 @@ class WideScene(
     private val SYS_M = Typeface.create("sans-serif-medium", Typeface.NORMAL)
 
     private fun paint(size: Float, tf: Typeface, col: Int, align: Paint.Align = Paint.Align.LEFT) =
-        Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = tf; color = col; textAlign = align }
+        Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size; typeface = tf; color = col; textAlign = align }.shade()
 
     /** 글자의 세로 가운데를 y에 맞춰 그림 */
     private fun textMid(s: String, x: Float, y: Float, p: Paint) {

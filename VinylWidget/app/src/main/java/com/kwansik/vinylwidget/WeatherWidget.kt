@@ -44,7 +44,8 @@ object WeatherWidget {
     fun build(ctx: Context, style: WidgetStyle, d: WeatherData, wDp: Float = 170f, hDp: Float = 170f): RemoteViews {
         val rv = RemoteViews(ctx.packageName, R.layout.weather_canvas)
         Palette.applyBackground(rv, style)
-        val scene = WeatherScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style))
+        val scene = WeatherScene(ctx, wDp, hDp, Palette.text(ctx, style), Palette.sub(ctx, style), Palette.accent(ctx, style),
+            Palette.shadow(ctx, style))
         scene.draw(style.design.coerceIn(1, DESIGN_NAMES.size), d)
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))
@@ -62,7 +63,7 @@ object WeatherWidget {
         val ownCard = simple && !style.glass
         Palette.applyBackground(rv, style, visible = !ownCard)
         val main = Palette.text(ctx, style)
-        val scene = WideScene(ctx, wDp, hDp, main, Palette.sub(ctx, style), Palette.accent(ctx, style))
+        val scene = WideScene(ctx, wDp, hDp, main, Palette.sub(ctx, style), Palette.accent(ctx, style), Palette.shadow(ctx, style))
         scene.draw(design, d, if (ownCard) WidgetPrefs.alphaOf(style.transparency) else 0, style.white)
         rv.setImageViewBitmap(R.id.w_canvas, scene.bitmap)
         rv.setOnClickPendingIntent(R.id.w_tap_calendar, calendarIntent(ctx))

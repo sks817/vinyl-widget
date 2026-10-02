@@ -167,12 +167,22 @@ class ConfigActivity : Activity() {
 
         // 배경
         panel.addView(text("배경", 16f))
-        panel.addView(text("자동: 배경화면 색을 띤 반투명 유리 카드 (다크 모드도 따라감)", 12f, 0xFFAAAAAA.toInt()))
+        panel.addView(text("없음: 배경화면 위에 그림·글자만 / 유리: 배경화면 색을 띤 반투명 카드", 12f, 0xFFAAAAAA.toInt()))
         val bgRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf(Triple("자동", true, false), Triple("검정", false, false), Triple("흰색", false, true)).forEach { (name, isGlass, isWhite) ->
+        // (이름, 유리, 흰색, 바탕 없음)
+        listOf(
+            listOf("없음", true, false, true), listOf("유리", true, false, false),
+            listOf("검정", false, false, false), listOf("흰색", false, true, false)
+        ).forEach { (name, isGlass, isWhite, none) ->
             val b = Button(this).apply {
-                text = name
-                setOnClickListener { glass = isGlass; white = isWhite; refreshSelectors(); renderPreview() }
+                text = name as String
+                setOnClickListener {
+                    glass = isGlass as Boolean; white = isWhite as Boolean
+                    transparency = if (none as Boolean) 100 else if (transparency >= 100) 0 else transparency
+                    transBar.progress = transparency
+                    transLabel.text = "배경 투명도  $transparency%"
+                    refreshSelectors(); renderPreview()
+                }
             }
             bgButtons += b
             bgRow.addView(b, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -189,6 +199,7 @@ class ConfigActivity : Activity() {
             setOnSeekBarChangeListener(listener { p ->
                 transparency = p
                 transLabel.text = "배경 투명도  $transparency%"
+                refreshSelectors()
                 renderPreview()
             })
         }
@@ -276,7 +287,7 @@ class ConfigActivity : Activity() {
 
     private fun refreshSelectors() {
         designButtons.forEachIndexed { i, b -> b.alpha = if (i + 1 == design) 1f else 0.45f }
-        val bgIndex = if (glass) 0 else if (white) 2 else 1
+        val bgIndex = if (transparency >= 100) 0 else if (glass) 1 else if (white) 3 else 2
         bgButtons.forEachIndexed { i, b -> b.alpha = if (i == bgIndex) 1f else 0.45f }
     }
 
