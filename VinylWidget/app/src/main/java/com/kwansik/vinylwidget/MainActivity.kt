@@ -86,6 +86,9 @@ class MainActivity : Activity() {
         root.addView(button("다음 일정 위젯 모두 꾸미기") { openConfig(Kind.MEMO) })
         root.addView(button("병맛 스티커 추가 (1×1, 누르면 고른 앱 열기)") { pin(StickerWidgetProvider::class.java) })
         root.addView(button("사진 스티커 추가 (2×2, 줄이면 1×1 · 영수증·택배 송장·영양성분표)") { pin(PhotoWidgetProvider::class.java) })
+        root.addView(button("배경화면 고르기 (위젯과 어울리는 12종 · 폴드8 크기 포함)") {
+            startActivity(android.content.Intent(this, WallpaperActivity::class.java))
+        })
 
         root.addView(body().apply {
             setPadding(0, pad, 0, 0)

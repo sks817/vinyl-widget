@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- 날씨 조회(Open-Meteo) -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 14+: 네트워크 조건이 있는 백그라운드 작업(30분 날씨 갱신)에 필수. 없으면 앱이 강제 종료됨 -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -111,6 +112,12 @@
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/widget_sticker_info" />
         </receiver>
+
+        <activity
+            android:name=".WallpaperActivity"
+            android:label="배경화면"
+            android:exported="false"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
 
         <activity
             android:name=".PhotoConfigActivity"
