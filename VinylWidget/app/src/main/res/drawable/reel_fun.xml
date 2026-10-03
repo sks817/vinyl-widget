@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 병맛 카세트 릴 = 왕눈이 눈알. 돌면 눈동자가 빙글빙글 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp" android:height="100dp"
+    android:viewportWidth="100" android:viewportHeight="100">
+    <path android:fillColor="#FFFFFFFF" android:strokeColor="#FF2B2622" android:strokeWidth="6"
+        android:pathData="M50,6a44,44 0 1,1 0,88a44,44 0 1,1 0,-88z" />
+    <path android:fillColor="#FF2B2622"
+        android:pathData="M60,18a20,20 0 1,1 0,40a20,20 0 1,1 0,-40z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M54,24a6,6 0 1,1 0,12a6,6 0 1,1 0,-12z" />
+</vector>

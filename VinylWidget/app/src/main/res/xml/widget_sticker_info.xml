@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 처음 놓을 때 스티커와 열 앱을 고름. 길게 눌러 '설정'으로 다시 바꿀 수 있음 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="40dp" android:minHeight="40dp"
+    android:minResizeWidth="40dp" android:minResizeHeight="40dp"
+    android:targetCellWidth="1" android:targetCellHeight="1"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_sticker"
+    android:previewLayout="@layout/widget_sticker"
+    android:description="@string/sticker_desc"
+    android:configure="com.kwansik.vinylwidget.StickerConfigActivity"
+    android:widgetFeatures="reconfigurable"
+    android:widgetCategory="home_screen" />

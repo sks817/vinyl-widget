@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 1×4 날씨: 그림 한 장 + 터치 영역(왼쪽 3/4: 캘린더, 오른쪽 1/4: 새로고침) -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <ImageView android:id="@+id/bg_image"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:src="@drawable/widget_bg_glass" android:scaleType="fitXY" />
+    <ImageView android:id="@+id/w_canvas"
+        android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal">
+        <FrameLayout android:id="@+id/w_tap_calendar"
+            android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="3" />
+        <FrameLayout android:id="@+id/w_tap_refresh"
+            android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" />
+    </LinearLayout>
+    <!-- '심플' 디자인에서만 보이는 시계. 그림이 아니라 시스템 시계 부품이라 1분마다 저절로 바뀌고 배터리 부담이 없음 -->
+    <TextClock android:id="@+id/w_time"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="end|bottom"
+        android:format12Hour="h:mm" android:format24Hour="H:mm"
+        android:fontFamily="sans-serif-medium" android:textSize="26sp"
+        android:textColor="#FFFFFFFF" android:includeFontPadding="false"
+        android:visibility="gone" />
+</FrameLayout>

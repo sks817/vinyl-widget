@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 카세트 테이프: 몸통 그림(코드에서 그린 비트맵) + 릴 두 개(재생 중이면 도는 ProgressBar, 멈추면 서 있는 그림).
+     크기·릴 위치는 코드에서 테이프 크기에 맞춰 지정 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tape"
+    android:layout_width="160dp" android:layout_height="100dp"
+    android:layout_gravity="center"
+    android:visibility="gone">
+    <ImageView android:id="@+id/tape_img"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="fitXY" />
+    <ImageView android:id="@+id/reel_l_still"
+        android:layout_width="30dp" android:layout_height="30dp" android:layout_gravity="top|start"
+        android:src="@drawable/reel" android:scaleType="fitCenter" />
+    <ImageView android:id="@+id/reel_r_still"
+        android:layout_width="30dp" android:layout_height="30dp" android:layout_gravity="top|start"
+        android:src="@drawable/reel" android:scaleType="fitCenter" />
+    <ProgressBar android:id="@+id/reel_l"
+        android:layout_width="30dp" android:layout_height="30dp" android:layout_gravity="top|start"
+        android:indeterminateOnly="true" android:indeterminateDrawable="@drawable/reel_spin"
+        android:indeterminateDuration="1400" android:indeterminateBehavior="repeat"
+        android:interpolator="@android:anim/linear_interpolator"
+        android:minWidth="0dp" android:minHeight="0dp" android:maxWidth="2000dp" android:maxHeight="2000dp"
+        android:visibility="gone" />
+    <ProgressBar android:id="@+id/reel_r"
+        android:layout_width="30dp" android:layout_height="30dp" android:layout_gravity="top|start"
+        android:indeterminateOnly="true" android:indeterminateDrawable="@drawable/reel_spin"
+        android:indeterminateDuration="1400" android:indeterminateBehavior="repeat"
+        android:interpolator="@android:anim/linear_interpolator"
+        android:minWidth="0dp" android:minHeight="0dp" android:maxWidth="2000dp" android:maxHeight="2000dp"
+        android:visibility="gone" />
+    <ProgressBar android:id="@+id/reel_lf"
+        android:layout_width="30dp" android:layout_height="30dp" android:layout_gravity="top|start"
+        android:indeterminateOnly="true" android:indeterminateDrawable="@drawable/reel_fun_spin"
+        android:indeterminateDuration="1400" android:indeterminateBehavior="repeat"
+        android:interpolator="@android:anim/linear_interpolator"
+        android:minWidth="0dp" android:minHeight="0dp" android:maxWidth="2000dp" android:maxHeight="2000dp"
+        android:visibility="gone" />
+    <ProgressBar android:id="@+id/reel_rf"
+        android:layout_width="30dp" android:layout_height="30dp" android:layout_gravity="top|start"
+        android:indeterminateOnly="true" android:indeterminateDrawable="@drawable/reel_fun_spin"
+        android:indeterminateDuration="1400" android:indeterminateBehavior="repeat"
+        android:interpolator="@android:anim/linear_interpolator"
+        android:minWidth="0dp" android:minHeight="0dp" android:maxWidth="2000dp" android:maxHeight="2000dp"
+        android:visibility="gone" />
+</FrameLayout>

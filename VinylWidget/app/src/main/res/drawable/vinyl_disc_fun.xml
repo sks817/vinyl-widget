@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 병맛 레코드판: 만화처럼 굵은 외곽선 + 삐뚤빼뚤한 홈 + 만화식 반짝임. 반지름 62 안쪽은 라벨이 덮음 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp" android:height="200dp"
+    android:viewportWidth="200" android:viewportHeight="200">
+    <path android:fillColor="#FF2B2622" android:strokeColor="#FF0E0C0B" android:strokeWidth="6"
+        android:pathData="M100,4a96,96 0 1,1 0,192a96,96 0 1,1 0,-192z" />
+    <path android:strokeColor="#FF4A433E" android:strokeWidth="2.6" android:strokeLineCap="round"
+        android:pathData="M100,16a84,84 0 0,1 72,40 M178,100a78,78 0 0,1 -40,68 M100,182a82,82 0 0,1 -66,-34 M24,96a76,76 0 0,1 30,-60" />
+    <path android:strokeColor="#FF4A433E" android:strokeWidth="2.6" android:strokeLineCap="round"
+        android:pathData="M100,30a70,70 0 0,1 58,32 M166,112a68,68 0 0,1 -36,52 M84,168a70,70 0 0,1 -48,-40 M34,82a70,70 0 0,1 28,-40" />
+    <path android:strokeColor="#E6FFFFFF" android:strokeWidth="7" android:strokeLineCap="round"
+        android:pathData="M136,30 Q160,42 170,64" />
+    <path android:strokeColor="#B3FFFFFF" android:strokeWidth="7" android:strokeLineCap="round"
+        android:pathData="M175,78 L177,86" />
+</vector>

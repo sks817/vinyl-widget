@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 사진 스티커: 코드에서 위젯 크기대로 그린 프레임+사진 한 장. 누르면 사진·문구 바꾸기 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <ImageView android:id="@+id/ph_img"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:src="@drawable/st_photo" android:contentDescription="@string/photo_label" />
+</FrameLayout>

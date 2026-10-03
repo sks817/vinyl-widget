@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 처음 놓을 때 사진·프레임을 고름. 2×2 기본, 줄이면 1×1 배치. 누르거나 길게 눌러 '설정'으로 다시 바꿈 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp" android:minHeight="110dp"
+    android:minResizeWidth="40dp" android:minResizeHeight="40dp"
+    android:targetCellWidth="2" android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="3600000"
+    android:initialLayout="@layout/widget_photo"
+    android:previewLayout="@layout/widget_photo"
+    android:description="@string/photo_desc"
+    android:configure="com.kwansik.vinylwidget.PhotoConfigActivity"
+    android:widgetFeatures="reconfigurable"
+    android:widgetCategory="home_screen" />

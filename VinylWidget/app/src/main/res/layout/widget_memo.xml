@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 일정 메모: 다른 위젯과 같은 공통 배경(bg_image) + 코드에서 위젯 크기대로 그린 그림. 누르면 캘린더 앱 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <ImageView android:id="@+id/bg_image"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:src="@drawable/widget_bg_glass" android:scaleType="fitXY" />
+    <ImageView android:id="@+id/memo_canvas"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="fitXY" android:contentDescription="@string/memo_label" />
+</FrameLayout>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 병맛 레코드판 몸통(흰 원, 굵은 외곽선 안쪽까지). 색은 위젯에서 setColorFilter로 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp" android:height="200dp"
+    android:viewportWidth="200" android:viewportHeight="200">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M100,4a96,96 0 1,1 0,192a96,96 0 1,1 0,-192z" />
+</vector>

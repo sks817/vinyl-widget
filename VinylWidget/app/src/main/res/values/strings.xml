@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">레코드 위젯</string>
+    <string name="widget_label">레코드 위젯</string>
+    <string name="widget_desc">음악 재생 시 레코드판이 돌아갑니다</string>
+    <string name="weather_label">날씨·날짜</string>
+    <string name="weather_desc">오늘 날씨와 날짜. 옆으로 늘리면 시간별 예보까지</string>
+    <string name="config_title">위젯 꾸미기</string>
+    <string name="prev">이전 곡</string>
+    <string name="play">재생/일시정지</string>
+    <string name="next">다음 곡</string>
+    <string name="widget_wide_label">레코드 위젯 (1×4)</string>
+    <string name="widget_wide_desc">판·곡 제목·재생 버튼을 한 줄에</string>
+    <string name="weather_wide_label">날씨·날짜 (1×4)</string>
+    <string name="weather_wide_desc">날씨와 시간에 따라 바뀌는 캠핑 풍경</string>
+    <string name="sticker_label">병맛 스티커</string>
+    <string name="tt_label">타임테이블</string>
+    <string name="tt_desc">하루·일주일 일정을 시간 막대로 (아이 학원·픽업, 내 일정 모두)</string>
+    <string name="photo_label">사진 스티커</string>
+    <string name="photo_desc">영수증·택배 송장·영양성분표 병맛 프레임에 내 사진 (2×2, 줄이면 1×1)</string>
+    <string name="sticker_desc">누르면 원하는 앱이 열리는 1×1 스티커</string>
+    <string name="memo_label">다음 일정</string>
+    <string name="memo_desc">다음 일정을 크게, 나머지는 목록으로 (4×1·4×2·2×4)</string>
+</resources>

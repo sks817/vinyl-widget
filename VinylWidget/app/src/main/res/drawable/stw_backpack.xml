@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 살랑살랑 흔들기 (art/sticker_anim.js가 만듦) -->
+<rotate xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/st_backpack" android:fromDegrees="-6" android:toDegrees="6"
+    android:pivotX="50%" android:pivotY="62%" />

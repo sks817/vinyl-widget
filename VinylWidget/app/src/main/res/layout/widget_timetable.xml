@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 타임테이블: 코드에서 위젯 크기대로 그린 그림 한 장. 누르면 일정 고치기 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <ImageView android:id="@+id/tt_img"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="fitXY" android:contentDescription="@string/tt_label" />
+</FrameLayout>

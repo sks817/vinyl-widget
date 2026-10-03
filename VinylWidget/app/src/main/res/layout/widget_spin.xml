@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ImageView android:id="@+id/bg_image"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:src="@drawable/widget_bg_glass" android:scaleType="fitXY" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="8dp">
+        <FrameLayout android:id="@+id/disc_area"
+            android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+            <!-- 데크 = 판(정사각 D) + 오른쪽 톤암 자리(0.18D). 크기는 코드에서 위젯 크기에 맞춰 지정 -->
+            <FrameLayout android:id="@+id/deck"
+                android:layout_width="118dp" android:layout_height="100dp"
+                android:layout_gravity="center">
+                <!-- 판 몸통: 사용자가 고른 판 색(setColorFilter). 그 위에 홈·광택(static_disc / spinner)이 얹힘 -->
+                <ImageView android:id="@+id/disc_body"
+                    android:layout_width="100dp" android:layout_height="100dp"
+                    android:layout_gravity="start|center_vertical"
+                    android:src="@drawable/vinyl_body" android:scaleType="fitCenter" />
+                <ImageView android:id="@+id/static_disc"
+                    android:layout_width="100dp" android:layout_height="100dp"
+                    android:layout_gravity="start|center_vertical"
+                    android:src="@drawable/vinyl_grooves" android:scaleType="fitCenter" />
+                <ProgressBar android:id="@+id/spinner"
+                    android:layout_width="100dp" android:layout_height="100dp"
+                    android:layout_gravity="start|center_vertical"
+                    android:indeterminateOnly="true"
+                    android:indeterminateDrawable="@drawable/vinyl_spin"
+                    android:indeterminateDuration="1800"
+                    android:indeterminateBehavior="repeat"
+                    android:interpolator="@android:anim/linear_interpolator"
+                    android:minWidth="0dp" android:minHeight="0dp"
+                    android:maxWidth="2000dp" android:maxHeight="2000dp"
+                    android:visibility="gone" />
+                <ProgressBar android:id="@+id/spinner_fun"
+                    android:layout_width="100dp" android:layout_height="100dp"
+                    android:layout_gravity="start|center_vertical"
+                    android:indeterminateOnly="true"
+                    android:indeterminateDrawable="@drawable/vinyl_spin_fun"
+                    android:indeterminateDuration="1800"
+                    android:indeterminateBehavior="repeat"
+                    android:interpolator="@android:anim/linear_interpolator"
+                    android:minWidth="0dp" android:minHeight="0dp"
+                    android:maxWidth="2000dp" android:maxHeight="2000dp"
+                    android:visibility="gone" />
+                <ImageView android:id="@+id/label"
+                    android:layout_width="100dp" android:layout_height="100dp"
+                    android:layout_gravity="start|center_vertical"
+                    android:scaleType="fitCenter" />
+                <!-- 톤암: 체크 상태 = 재생 중. 상태가 바뀔 때 팔이 판 위로 올라가거나 내려옴 -->
+                <CheckBox android:id="@+id/tonearm"
+                    android:layout_width="match_parent" android:layout_height="match_parent"
+                    android:button="@null"
+                    android:background="@drawable/tonearm_anim"
+                    android:clickable="false" android:focusable="false" />
+            </FrameLayout>
+            <include layout="@layout/tape_part" />
+            <TextView android:id="@+id/status"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="center" android:gravity="center"
+                android:textColor="#FFFFFFFF" android:textSize="12sp"
+                android:background="#99000000" android:padding="6dp"
+                android:visibility="gone" />
+        </FrameLayout>
+        <!-- 조작 줄: 이전 · (재생: 강조색 원) · 다음 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageButton android:id="@+id/btn_prev"
+                android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+                android:src="@drawable/ic_prev_auto" android:scaleType="centerInside"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/prev" />
+            <FrameLayout
+                android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1">
+                <ImageView android:id="@+id/play_bg"
+                    android:layout_width="40dp" android:layout_height="40dp" android:layout_gravity="center"
+                    android:src="@drawable/play_circle_auto" />
+                <ImageButton android:id="@+id/btn_play"
+                    android:layout_width="match_parent" android:layout_height="match_parent"
+                    android:src="@drawable/ic_play_on" android:scaleType="centerInside"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/play" />
+            </FrameLayout>
+            <ImageButton android:id="@+id/btn_next"
+                android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+                android:src="@drawable/ic_next_auto" android:scaleType="centerInside"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/next" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>
