@@ -15,8 +15,8 @@ const noZ = s => s.replace(/<text[^>]*>z<\/text>/g, '');
 
 // [키, 프레임 수, 길이(ms), 반복 방식, {svg: 기본 그림, tr: 프레임별 변형, ov: 프레임 위 그림(캔버스), bg: 칼선 뒤 그림, draw: 직접 그리기}]
 const SPECS = [];
-for (let s = 0; s < 5; s++) SPECS.push([`marsh_${s}`, 8, 1600, 'repeat', { draw: (g, ph) => marsh(g, s, ph) }]);
-for (let s = 0; s < 4; s++) SPECS.push([`fire_${s}`, 8, 900, 'repeat', { draw: (g, ph) => fire(g, s, ph) }]);
+for (let s = 0; s < 5; s++) SPECS.push([`marsh_${s}`, 12, 3600, 'repeat', { draw: (g, ph) => marsh(g, s, ph) }]);
+for (let s = 0; s < 4; s++) SPECS.push([`fire_${s}`, 10, 1800, 'repeat', { draw: (g, ph) => fire(g, s, ph) }]);
 for (const n of ['mug', 'coffee', 'kettle']) {
   SPECS.push([`${n}_0`, 6, 1500, 'repeat', { svg: noSteam(art[n]()), ov: (g, ph) => steam(g, n, ph, false) }]);
   SPECS.push([`${n}_1`, 1, 1000, 'repeat', { svg: noSteam(art[n]()), ov: (g, ph) => cold(g, n) }]);
@@ -74,16 +74,33 @@ function eyes(g, cx, cy, s, mood) {
   else { g.moveTo(cx - 14, cy + s * .2); g.quadraticCurveTo(cx, cy + s * .2 + 16, cx + 14, cy + s * .2); g.stroke(); }
 }
 const MCOL = ['#FFF8EE', '#F6D08A', '#D79A4E', '#8A5426', '#2A1E18'];
-function marsh(g, st, ph) {
+function marsh(g, st, ph) {   // 꼬치 축을 중심으로 굴리며 굽기: 겉모양은 그대로, 얼굴·탄 자국이 둘레를 따라 돌아감
   g.lineCap = 'round';
   g.strokeStyle = INK; g.lineWidth = 30; g.beginPath(); g.moveTo(95, 470); g.lineTo(265, 255); g.stroke();
   g.strokeStyle = '#B07A4A'; g.lineWidth = 16; g.stroke();
-  const spin = Math.cos(ph * Math.PI * 2);
-  g.save(); g.translate(300, 205); g.rotate(-0.95); g.scale(Math.max(.2, Math.abs(spin)), 1);
-  g.fillStyle = MCOL[st]; g.strokeStyle = INK; g.lineWidth = LW; g.beginPath(); g.roundRect(-95, -80, 190, 160, 50); g.fill(); g.stroke();
-  if (st >= 1) { g.fillStyle = `rgba(120,60,20,${0.12 + st * 0.08})`; g.beginPath(); g.roundRect(-95, 20, 190, 60, [0, 0, 50, 50]); g.fill(); }
+  const A = -0.902, R = 80, th = ph * Math.PI * 2;
+  const body = () => { g.beginPath(); g.roundRect(-95, -R, 190, 2 * R, 50); };
+  g.save(); g.translate(300, 205); g.rotate(A);
+  body(); g.fillStyle = MCOL[st]; g.fill();
+  g.save(); body(); g.clip();
+  if (st >= 1) for (const [off, rx] of [[Math.PI, 72], [Math.PI * 0.55, 46], [Math.PI * 1.45, 40]].slice(0, st >= 3 ? 3 : st)) {   // 탄 자국 (뒤쪽부터 생김)
+    const a = th + off, c = Math.cos(a); if (c <= 0.05) continue;
+    g.fillStyle = `rgba(${st >= 3 ? '40,22,12' : '125,62,20'},${0.25 + st * 0.12})`;
+    g.beginPath(); g.ellipse(-8, R * 0.92 * Math.sin(a), rx, 34 * c, 0, 0, 7); g.fill();
+  }
+  const sh = g.createLinearGradient(0, -R, 0, R);   // 둥근 몸통 명암 (빛은 고정)
+  sh.addColorStop(0, 'rgba(255,255,255,.35)'); sh.addColorStop(0.35, 'rgba(255,255,255,0)'); sh.addColorStop(0.7, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.18)');
+  g.fillStyle = sh; g.fillRect(-95, -R, 190, 2 * R);
   g.restore();
-  if (spin > -0.25) eyes(g, 300, 205, 120, st == 4 ? 'x' : st >= 2 ? 'hot' : 'dot');
+  body(); g.strokeStyle = INK; g.lineWidth = LW; g.stroke();
+  g.restore();
+  const c = Math.cos(th);
+  if (c > 0.2) {   // 얼굴이 앞으로 돌아왔을 때만
+    const y = R * 0.85 * Math.sin(th), fx = 300 - Math.sin(A) * y, fy = 205 + Math.cos(A) * y;
+    g.save(); g.translate(300, 205); g.rotate(A); g.beginPath(); g.roundRect(-89, -R + 6, 178, 2 * R - 12, 46); g.clip(); g.setTransform(1, 0, 0, 1, 0, 0);   // 몸통 밖으로 안 나가게
+    g.translate(fx, fy); g.scale(0.55 + 0.45 * c, 0.55 + 0.45 * c);
+    eyes(g, 0, -10, 120, st == 4 ? 'x' : st >= 2 ? 'hot' : 'dot'); g.restore();
+  }
   if (st >= 3) for (let i = 0; i < 3; i++) {
     const p = (ph + i / 3) % 1; g.strokeStyle = `rgba(110,110,110,${(1 - p) * 0.85})`; g.lineWidth = 12;
     g.beginPath(); g.moveTo(330 + i * 34, 100 - p * 70); g.quadraticCurveTo(310 + i * 34, 75 - p * 70, 335 + i * 34, 50 - p * 70); g.stroke();
@@ -118,7 +135,7 @@ function fire(g, st, ph) {
   g.restore();
   eyes(g, 256, 395 - 85 * s, 90 * s, 'dot');
   for (let i = 0; i < 5; i++) {   // 타닥타닥 불티
-    const p = (ph * 1.5 + i / 5) % 1;
+    const p = (ph + i / 5) % 1;
     g.fillStyle = `rgba(255,${180 + i * 12},70,${1 - p})`; g.strokeStyle = INK; g.lineWidth = 3;
     g.beginPath(); g.arc(256 + Math.sin(i * 7.3 + p * 5) * 80 * s, 395 - 300 * s - p * 110, 9 - p * 4, 0, 7); g.fill(); g.stroke();
   }
@@ -203,11 +220,26 @@ const svgOf = (inner, tr) => `<svg xmlns="http://www.w3.org/2000/svg" width="512
       fs.writeFileSync(`${NODPI}/${name}.webp`, Buffer.from(data.split(',')[1], 'base64'));
       items.push(name); if (i == 0 || i == Math.floor(n / 2)) prev.push(data);
     }
+    if (/^(marsh|fire|mug|coffee|kettle)_\d$/.test(key)) continue;   // 단계 그림은 아래 1분짜리 묶음으로
     const step = Math.floor(10000 / n);
     fs.writeFileSync(`${DR}/sta_${key}.xml`, `<?xml version="1.0" encoding="utf-8"?>\n<!-- 움직이는 스티커 프레임 (art/sticker_anim.js가 만듦). ProgressBar가 level을 돌리면 프레임이 넘어감 -->\n<level-list xmlns:android="http://schemas.android.com/apk/res/android">\n` +
       items.map((it, i) => `    <item android:maxLevel="${i == n - 1 ? 10000 : (i + 1) * step - 1}" android:drawable="@drawable/${it}" />`).join('\n') + `\n</level-list>\n`);
     layout(`st_anim_${key}`, `@drawable/sta_${key}`, dur, beh);
   }
+  // 시간이 흐르는 스티커: 굽기→타기 / 활활→숯불 / 김→식음 을 1분 안에 한 바퀴 돌고 반복
+  const seq = (stages) => stages.flatMap(([k, n, times]) => Array.from({ length: n * times }, (_, i) => `stf_${k}_${i % n}`));
+  const SEQS = [
+    ['marsh', seq([['marsh_0', 12, 3], ['marsh_1', 12, 3], ['marsh_2', 12, 3], ['marsh_3', 12, 3], ['marsh_4', 12, 4]]), 57600],
+    ['fire', seq([['fire_0', 10, 8], ['fire_1', 10, 8], ['fire_2', 10, 8], ['fire_3', 10, 8]]), 57600],
+    ...['mug', 'coffee', 'kettle'].map(n => [n, seq([[`${n}_0`, 6, 30], [`${n}_1`, 1, 60]]), 60000]),
+  ];
+  for (const [key, items, dur] of SEQS) {
+    const step = 10000 / items.length;
+    fs.writeFileSync(`${DR}/sta_${key}.xml`, `<?xml version="1.0" encoding="utf-8"?>\n<!-- 움직이는 스티커 1분 묶음 (art/sticker_anim.js가 만듦) -->\n<level-list xmlns:android="http://schemas.android.com/apk/res/android">\n` +
+      items.map((it, i) => `    <item android:maxLevel="${i == items.length - 1 ? 10000 : Math.round((i + 1) * step) - 1}" android:drawable="@drawable/${it}" />`).join('\n') + `\n</level-list>\n`);
+    layout(`st_anim_${key}`, `@drawable/sta_${key}`, dur, 'repeat');
+  }
+  layout('st_anim_marsh_fast', '@drawable/sta_marsh', 38400, 'repeat');   // 모닥불 스티커가 있으면 더 빨리 탐
   for (const [n, deg, dur] of WIGGLE) {
     fs.writeFileSync(`${DR}/stw_${n}.xml`, `<?xml version="1.0" encoding="utf-8"?>\n<!-- 살랑살랑 흔들기 (art/sticker_anim.js가 만듦) -->\n<rotate xmlns:android="http://schemas.android.com/apk/res/android"\n    android:drawable="@drawable/st_${n}" android:fromDegrees="-${deg}" android:toDegrees="${deg}"\n    android:pivotX="50%" android:pivotY="62%" />\n`);
     layout(`st_anim_w_${n}`, `@drawable/stw_${n}`, dur, 'cycle');

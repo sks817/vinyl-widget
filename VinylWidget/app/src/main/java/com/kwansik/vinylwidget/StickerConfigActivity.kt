@@ -30,10 +30,7 @@ class StickerConfigActivity : Activity() {
     private var pkg: String? = null
     private lateinit var look: StickerWidget.Look
     private var animOn = true
-    private var tapReact = true
     private lateinit var animHolder: android.widget.FrameLayout
-    private lateinit var tapCard: View
-    private var startSticker = 0
     private lateinit var ui: SheetUi
 
     private val sheetBg by lazy { getColor(android.R.color.system_neutral1_900) }
@@ -64,7 +61,7 @@ class StickerConfigActivity : Activity() {
         sticker = StickerWidget.sticker(this, widgetId)
         pkg = StickerWidget.app(this, widgetId)
         look = StickerWidget.look(this, widgetId)
-        animOn = StickerAnim.enabled(this, widgetId); tapReact = StickerAnim.tapReacts(this, widgetId); startSticker = sticker
+        animOn = StickerAnim.enabled(this, widgetId)
         ui = SheetUi(this)
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(sheetBg) }
@@ -107,17 +104,11 @@ class StickerConfigActivity : Activity() {
         })
 
         // 움직임
-        secLook.addView(ui.card("움직임", "켜면 스티커가 움직여요 · 움직이는 동안엔 기울기·테두리는 적용되지 않아요").also { c ->
+        secLook.addView(ui.card("움직임", "켜면 스티커가 움직여요 (1분마다 반복) · 움직이는 동안엔 기울기·테두리는 적용되지 않아요").also { c ->
             c.addView(android.widget.Switch(this).apply {
                 text = "움직이기"; setTextColor(onSurface); isChecked = animOn; textSize = 15f
                 setOnCheckedChangeListener { _, on -> animOn = on; refresh() }
             }, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(8) })
-            tapCard = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(text("누르면", 13f, onSurfaceVar).apply { setPadding(0, dp(10), 0, 0) })
-                addView(ui.chips(arrayOf("스티커 반응 (새 마시멜로·장작·데우기)", "고른 앱 열기"), { if (tapReact) 0 else 1 }) { tapReact = it == 0; ui.refresh(); refresh() })
-            }
-            c.addView(tapCard)
         })
         // 기울기 · 테두리
         secLook.addView(ui.card("기울기").also { c ->
@@ -195,9 +186,8 @@ class StickerConfigActivity : Activity() {
 
     private fun refresh() {
         val name = StickerAnim.nameOf(this, sticker)
-        if (::tapCard.isInitialized) tapCard.visibility = if (animOn && StickerAnim.interactive(name)) View.VISIBLE else View.GONE
         animHolder.removeAllViews()
-        val lid = if (animOn) StickerAnim.layoutId(this, StickerAnim.state(this, widgetId, name).first.let { k -> if (sticker != startSticker && StickerAnim.interactive(name)) "${name}_0" else k }) else 0
+        val lid = if (animOn) StickerAnim.layoutId(this, StickerAnim.key(this, widgetId, name)) else 0
         if (lid != 0) {
             layoutInflater.inflate(lid, animHolder, true)
             animHolder.findViewById<View>(R.id.st_anim)?.layoutParams = android.widget.FrameLayout.LayoutParams(dp(110), dp(110), Gravity.CENTER)
@@ -208,8 +198,6 @@ class StickerConfigActivity : Activity() {
         cells.forEach { it.background = if (it.tag == sticker) rounded(Color.TRANSPARENT, 16f, accent, 3) else null }
         val label = appRows.firstOrNull { it.second == pkg && pkg != null }?.first?.tag as String?
         appName.text = when {
-            animOn && StickerAnim.interactive(name) && (tapReact || pkg == null) ->
-                "누르면: " + when (name) { "marsh" -> "새 마시멜로"; "fire" -> "장작 넣기"; else -> "다시 데우기" }
             pkg == null -> "누르면: 아무 일도 안 해요"
             else -> "누르면: ${label ?: pkg} 열기"
         }
@@ -219,9 +207,8 @@ class StickerConfigActivity : Activity() {
     private fun save() {
         StickerWidget.save(this, widgetId, sticker, pkg)
         StickerWidget.saveLook(this, widgetId, look)
-        StickerAnim.saveOptions(this, widgetId, animOn, tapReact)
-        if (sticker != startSticker) StickerAnim.reset(this, widgetId)
-        AppWidgetManager.getInstance(this).updateAppWidget(widgetId, StickerWidget.build(this, widgetId))
+        StickerAnim.saveOptions(this, widgetId, animOn)
+        StickerWidget.renderAll(this)   // 모닥불을 고르거나 빼면 다른 마시멜로 속도도 바뀜
         setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId))
         finish()
     }
