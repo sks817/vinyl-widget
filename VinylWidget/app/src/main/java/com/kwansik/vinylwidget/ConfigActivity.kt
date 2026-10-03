@@ -201,33 +201,38 @@ class ConfigActivity : Activity() {
         sheet.addView(View(this).apply { background = rounded(outline, 2f) },
             LinearLayout.LayoutParams(dp(36), dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(10); bottomMargin = dp(6) })
 
-        val body = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(6), dp(16), dp(16))
-        }
-        body.addView(text("${KindConfig.name(kind)} 위젯 꾸미기", 20f, onSurface, bold = true))
-        body.addView(text(if (targetId() == null) "모든 ${KindConfig.name(kind)} 위젯에 한꺼번에 적용돼요"
-            else "이 위젯에만 적용돼요", 13f, onSurfaceVar).apply { setPadding(0, dp(2), 0, dp(14)) })
+        // 제목은 위에 고정, 설정은 탭으로 나눠 스크롤을 줄임 (미리보기는 시트 위에 늘 보임)
+        sheet.addView(text("${KindConfig.name(kind)} 위젯 꾸미기 · " + (if (targetId() == null) "모든 위젯에 적용" else "이 위젯만"),
+            16f, onSurface, bold = true).apply { setPadding(dp(16), 0, dp(16), dp(6)) })
 
+        fun section() = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val secDesign = section(); val secBg = section(); val secColor = section()
         if (isWeather()) {
-            body.addView(designCard())
-            body.addView(artCard())
-            if (kind == Kind.WEATHER) body.addView(calendarCard())
+            secDesign.addView(designCard())
+            secDesign.addView(artCard())
+            if (kind == Kind.WEATHER) secDesign.addView(calendarCard())
         }
-        if (KindConfig.isMusic(kind)) body.addView(playerCard())
-        if (kind == Kind.MEMO) body.addView(memoCard())
-        body.addView(themeCard())
-        body.addView(backgroundCard())
+        if (KindConfig.isMusic(kind)) secDesign.addView(playerCard())
+        if (kind == Kind.MEMO) secDesign.addView(memoCard())
+        secDesign.addView(themeCard())
+        secBg.addView(backgroundCard())
         // 테두리 (모든 위젯 공통): 스타일 · 두께 · 색
-        body.addView(sheetUi.borderCard({ border }, { borderDp }, { borderColor }) { st, t, col ->
+        secBg.addView(sheetUi.borderCard({ border }, { borderDp }, { borderColor }) { st, t, col ->
             if (st != null) border = st; if (t != null) borderDp = t; if (col != null) borderColor = col
             renderPreview()
         })
         refreshers += { sheetUi.refresh() }
-        body.addView(colorCard())
+        secColor.addView(colorCard())
 
-        sheet.addView(ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = false },
-            LinearLayout.LayoutParams(MATCH, 0, 1f))
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), 0, dp(16), dp(16))
+        }
+        listOf(secDesign, secBg, secColor).forEach { body.addView(it) }
+        val scroll = ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = false }
+        sheet.addView(sheetUi.tabs(arrayOf(if (KindConfig.isMusic(kind)) "플레이어·테마" else "디자인·테마", "배경·테두리", "글자·아이콘 색"),
+            listOf(secDesign, secBg, secColor), scroll))
+        sheet.addView(scroll, LinearLayout.LayoutParams(MATCH, 0, 1f))
         sheet.addView(bottomBar())
         return sheet
     }

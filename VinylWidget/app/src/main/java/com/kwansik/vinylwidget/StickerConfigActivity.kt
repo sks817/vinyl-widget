@@ -62,21 +62,22 @@ class StickerConfigActivity : Activity() {
         ui = SheetUi(this)
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(sheetBg) }
-        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(12), dp(16), dp(16)) }
 
-        body.addView(text("병맛 스티커", 22f, onSurface, true))
-        body.addView(text("홈 화면에 붙이고, 누르면 원하는 앱이 열려요", 13f, onSurfaceVar).apply { setPadding(0, dp(2), 0, dp(12)) })
-
-        // 고른 스티커 크게 + 열 앱 이름
-        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        // ---- 위에 고정: 제목 + 고른 스티커 크게 + 열 앱 이름 (바꾸면 바로 보임) ----
+        val head = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(10), dp(16), dp(8)) }
+        head.addView(text("병맛 스티커", 20f, onSurface, true))
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(6), 0, 0) }
         preview = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
         top.addView(preview, LinearLayout.LayoutParams(dp(112), dp(112)))
         appName = text("", 15f, onSurface, true).apply { setPadding(dp(14), 0, 0, 0) }
         top.addView(appName, LinearLayout.LayoutParams(0, WRAP, 1f))
-        body.addView(top)
+        head.addView(top)
+
+        fun section() = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val secPick = section(); val secLook = section(); val secApp = section()
 
         // 스티커 고르기 (한 줄에 6개)
-        body.addView(card("스티커 고르기").also { c ->
+        secPick.addView(card("스티커 고르기").also { c ->
             Stickers.RES.toList().chunked(6).forEachIndexed { r, row ->
                 val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
                 row.forEachIndexed { i, res ->
@@ -95,16 +96,16 @@ class StickerConfigActivity : Activity() {
         })
 
         // 기울기 · 테두리
-        body.addView(ui.card("기울기").also { c ->
+        secLook.addView(ui.card("기울기").also { c ->
             c.addView(ui.slider("기울기", 30, look.tilt + 15, { v -> val d = v - 15; if (d > 0) "+$d°" else "$d°" }) { look.tilt = it - 15; refresh() }.first)
         })
-        body.addView(ui.borderCard({ look.border }, { look.borderDp }, { look.borderColor }) { st, t, col ->
+        secLook.addView(ui.borderCard({ look.border }, { look.borderDp }, { look.borderColor }) { st, t, col ->
             if (st != null) look.border = st; if (t != null) look.borderDp = t; if (col != null) look.borderColor = col
             refresh()
         })
 
         // 누르면 열 앱
-        body.addView(card("누르면 열 앱").also { c ->
+        secApp.addView(card("누르면 열 앱").also { c ->
             val search = EditText(this).apply {
                 hint = "앱 이름 검색"; textSize = 14f; setTextColor(onSurface); setHintTextColor(outline)
                 background = rounded(trackBg, 14f); setPadding(dp(14), dp(10), dp(14), dp(10)); isSingleLine = true
@@ -119,7 +120,12 @@ class StickerConfigActivity : Activity() {
             c.addView(appList)
         })
 
-        root.addView(ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = false }, LinearLayout.LayoutParams(MATCH, 0, 1f))
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), 0, dp(16), dp(16)) }
+        listOf(secPick, secLook, secApp).forEach { body.addView(it) }
+        val scroll = ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = false }
+        root.addView(head)
+        root.addView(ui.tabs(arrayOf("스티커 고르기", "기울기·테두리", "누르면 열 앱"), listOf(secPick, secLook, secApp), scroll))
+        root.addView(scroll, LinearLayout.LayoutParams(MATCH, 0, 1f))
         root.addView(bottomBar())
         setContentView(root)
         root.padForSystemBars()

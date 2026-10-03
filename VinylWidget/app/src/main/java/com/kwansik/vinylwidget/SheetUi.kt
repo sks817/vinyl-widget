@@ -143,6 +143,17 @@ class SheetUi(private val a: Activity) {
         return c
     }
 
+    /**
+     * 탭: 고른 탭의 묶음만 보이고 맨 위로 스크롤. 미리보기는 탭 위에 고정해 두고 쓰면
+     * 아래 설정을 바꾸면서 바로 결과가 보임
+     */
+    fun tabs(names: Array<String>, sections: List<View>, scroll: android.widget.ScrollView): View {
+        var cur = 0
+        fun show(i: Int) { cur = i; sections.forEachIndexed { k, v -> v.visibility = if (k == i) View.VISIBLE else View.GONE }; scroll.scrollTo(0, 0) }
+        show(0)
+        return chips(names, { cur }) { show(it); refresh() }.apply { setPadding(dp(16), 0, dp(16), dp(6)) }
+    }
+
     fun bottomBar(okLabel: String, onCancel: () -> Unit, onOk: () -> Unit): View {
         val bar = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(16), dp(10), dp(16), dp(14)); setBackgroundColor(sheetBg) }
         val cancel = text("취소", 16f, onSurface).apply {

@@ -65,22 +65,24 @@ class PhotoConfigActivity : Activity() {
         val dp = ui::dp
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(ui.sheetBg) }
-        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(12), dp(16), dp(16)) }
 
-        body.addView(ui.text("사진 스티커", 22f, ui.onSurface, true))
-        body.addView(ui.text("2×2, 줄이면 1×1 · 미리보기를 끌면 사진 위치, 두 손가락으로 벌리면 확대", 13f, ui.onSurfaceVar).apply { setPadding(0, dp(2), 0, dp(12)) })
-
-        // 미리보기: 2×2 + 1×1
-        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL }
+        // ---- 위에 고정: 제목 + 미리보기 (설정을 바꾸면 바로 보임) ----
+        val head = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(10), dp(16), dp(6)) }
+        head.addView(ui.text("사진 스티커", 20f, ui.onSurface, true))
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; setPadding(0, dp(4), 0, 0) }
         prevBig = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
         prevSmall = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
-        top.addView(labeled(prevBig, "2×2", dp(200)), LinearLayout.LayoutParams(dp(200), ui.WRAP))
-        top.addView(labeled(prevSmall, "1×1", dp(90)), LinearLayout.LayoutParams(dp(96), ui.WRAP).apply { marginStart = dp(16) })
-        body.addView(top)
+        top.addView(labeled(prevBig, "2×2 · 끌면 위치, 벌리면 확대", dp(170)), LinearLayout.LayoutParams(dp(200), ui.WRAP))
+        top.addView(labeled(prevSmall, "1×1", dp(80)), LinearLayout.LayoutParams(dp(90), ui.WRAP).apply { marginStart = dp(12) })
+        head.addView(top)
         attachGestures(prevBig)
 
+        // ---- 탭별 설정 ----
+        fun section() = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val secPhoto = section(); val secFrame = section(); val secLook = section()
+
         // 사진: 칸 고르기(네컷) + 고르기 버튼 + 확대·위치
-        body.addView(ui.card("사진").also { c ->
+        secPhoto.addView(ui.card("사진").also { c ->
             slotRow = ui.chips(Array(PhotoWidget.SLOTS) { "사진 ${it + 1}" }, { slot }) { slot = it; syncCrop(); ui.refresh() }
             c.addView(slotRow)
             c.addView(ui.button("갤러리에서 사진 고르기") { pick() }, LinearLayout.LayoutParams(ui.MATCH, dp(46)).apply { topMargin = dp(10) })
@@ -92,36 +94,40 @@ class PhotoConfigActivity : Activity() {
             }, LinearLayout.LayoutParams(ui.MATCH, dp(40)).apply { topMargin = dp(8) })
         })
 
-        body.addView(ui.card("프레임").also { c ->
+        // 프레임 · 다이컷 모양 · 문구
+        secFrame.addView(ui.card("프레임").also { c ->
             c.addView(ui.chips(PhotoFrames.NAMES, { o.frame }) { o.frame = it; if (slot >= PhotoFrames.slots(it)) slot = 0; syncCrop(); buildFields(); ui.refresh(); renderPreview() })
         })
-
         shapeCard = ui.card("다이컷 모양").also { c ->
             c.addView(ui.chips(PhotoFrames.SHAPES, { o.shape }) { o.shape = it; ui.refresh(); renderPreview() })
         }
-        body.addView(shapeCard)
-
-        body.addView(ui.card("문구", "칸마다 글자 수 제한 안에서 직접 써 주세요. 비워 두면 예시 문구가 들어가요").also { c ->
+        secFrame.addView(shapeCard)
+        secFrame.addView(ui.card("문구", "칸마다 글자 수 제한 안에서 직접 써 주세요. 비워 두면 예시 문구가 들어가요").also { c ->
             fieldsBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             c.addView(fieldsBox)
         })
 
-        paperCard = ui.card("종이 색").also { c ->
-            c.addView(ui.swatches(PhotoFrames.PAPERS, PhotoFrames.PAPER_NAMES, { PhotoFrames.paperOf(o.frame, it) }, { o.paper }) { o.paper = it; ui.refresh(); renderPreview() })
-        }
-        body.addView(paperCard)
-
-        body.addView(ui.borderCard({ o.borderStyle() }, { o.borderDp }, { o.borderColor }) { s, t, col ->
+        // 꾸미기: 테두리 · 기울기·모서리 · 종이 색
+        secLook.addView(ui.borderCard({ o.borderStyle() }, { o.borderDp }, { o.borderColor }) { s, t, col ->
             if (s != null) o.border = s; if (t != null) o.borderDp = t; if (col != null) o.borderColor = col
             renderPreview()
         })
-
-        body.addView(ui.card("모양").also { c ->
+        secLook.addView(ui.card("모양").also { c ->
             c.addView(ui.slider("기울기", 30, o.tilt + 15, { v -> val d = v - 15; if (d > 0) "+$d°" else "$d°" }) { o.tilt = it - 15; renderPreview() }.first)
             c.addView(ui.slider("모서리 R", 50, o.radius, { "$it%" }) { o.radius = it; renderPreview() }.first)
         })
+        paperCard = ui.card("종이 색").also { c ->
+            c.addView(ui.swatches(PhotoFrames.PAPERS, PhotoFrames.PAPER_NAMES, { PhotoFrames.paperOf(o.frame, it) }, { o.paper }) { o.paper = it; ui.refresh(); renderPreview() })
+        }
+        secLook.addView(paperCard)
 
-        root.addView(ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = false }, LinearLayout.LayoutParams(ui.MATCH, 0, 1f))
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), 0, dp(16), dp(16)) }
+        listOf(secPhoto, secFrame, secLook).forEach { body.addView(it) }
+        val scroll = ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = false }
+
+        root.addView(head)
+        root.addView(ui.tabs(arrayOf("사진", "프레임·문구", "테두리·꾸미기"), listOf(secPhoto, secFrame, secLook), scroll))
+        root.addView(scroll, LinearLayout.LayoutParams(ui.MATCH, 0, 1f))
         root.addView(ui.bottomBar("붙이기", { finish() }) { save() })
         setContentView(root)
         root.padForSystemBars()
