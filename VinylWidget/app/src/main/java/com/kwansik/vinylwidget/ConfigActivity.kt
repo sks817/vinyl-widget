@@ -87,7 +87,7 @@ class ConfigActivity : Activity() {
     private var border = BorderFx.NONE
     private var borderDp = 4
     private var borderColor = 0
-    private val sheet by lazy { SheetUi(this) }
+    private val sheetUi by lazy { SheetUi(this) }
 
     private val hsv = FloatArray(3)
     private var updatingUi = false
@@ -219,11 +219,11 @@ class ConfigActivity : Activity() {
         body.addView(themeCard())
         body.addView(backgroundCard())
         // 테두리 (모든 위젯 공통): 스타일 · 두께 · 색
-        body.addView(sheet.borderCard({ border }, { borderDp }, { borderColor }) { st, t, col ->
+        body.addView(sheetUi.borderCard({ border }, { borderDp }, { borderColor }) { st, t, col ->
             if (st != null) border = st; if (t != null) borderDp = t; if (col != null) borderColor = col
             renderPreview()
         })
-        refreshers += { sheet.refresh() }
+        refreshers += { sheetUi.refresh() }
         body.addView(colorCard())
 
         sheet.addView(ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = false },
