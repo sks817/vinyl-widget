@@ -102,7 +102,7 @@ class PhotoConfigActivity : Activity() {
             c.addView(ui.chips(PhotoFrames.SHAPES, { o.shape }) { o.shape = it; ui.refresh(); renderPreview() })
         }
         secFrame.addView(shapeCard)
-        secFrame.addView(ui.card("문구", "칸마다 글자 수 제한 안에서 직접 써 주세요. 비워 두면 예시 문구가 들어가요").also { c ->
+        secFrame.addView(ui.card("문구", "칸마다 글자 수 제한 안에서 직접 써 주세요. 지우면 그 칸은 비어 있어요 (처음엔 예시 문구)").also { c ->
             fieldsBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             c.addView(fieldsBox)
         })
@@ -203,7 +203,7 @@ class PhotoConfigActivity : Activity() {
             row.addView(ui.text(fd.label, 13f, ui.onSurfaceVar), LinearLayout.LayoutParams(dp(76), ui.WRAP))
             val count = ui.text("", 12f, ui.outline).apply { gravity = Gravity.END }
             val edit = EditText(this).apply {
-                textSize = 15f; setTextColor(ui.onSurface); setHintTextColor(ui.outline); hint = PhotoFrames.fill(fd.def); isSingleLine = true
+                textSize = 15f; setTextColor(ui.onSurface); setHintTextColor(ui.outline); hint = "예: " + PhotoFrames.fill(fd.def); isSingleLine = true
                 filters = arrayOf(InputFilter.LengthFilter(fd.max))
                 background = ui.rounded(ui.trackBg, 12f); setPadding(dp(12), dp(8), dp(12), dp(8))
                 setText(o.texts[f][i])

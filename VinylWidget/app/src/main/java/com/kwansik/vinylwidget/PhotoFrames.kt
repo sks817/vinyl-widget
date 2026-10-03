@@ -276,7 +276,7 @@ object PhotoFrames {
                 lineTo(l, t + rr); quadTo(l, t, l + rr, t); close()
             }
             c.drawPath(path, shadowed(paper))
-            text(if (big) "★ ${s(0)} ★" else "★${s(0)}★", S / 2, t + S * 0.06f, S * (if (big) 0.06f else 0.085f), tf(900), ink, Paint.Align.CENTER, w * 0.9f)
+            if (s(0).isNotEmpty()) text(if (big) "★ ${s(0)} ★" else "★${s(0)}★", S / 2, t + S * 0.06f, S * (if (big) 0.06f else 0.085f), tf(900), ink, Paint.Align.CENTER, w * 0.9f)
             val pw = w * 0.82f; val ph = S * (if (big) 0.38f else 0.42f); val py = t + S * 0.11f
             photo(RectF(S / 2 - pw / 2, py, S / 2 + pw / 2, py + ph))
             val dash = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -295,7 +295,7 @@ object PhotoFrames {
                 text("합계", l + w * 0.08f, y + S * 0.02f, S * 0.06f, tf(900), ink)
                 text(s(5), l + w * 0.92f, y + S * 0.02f, S * 0.06f, tf(900), red, Paint.Align.RIGHT, w * 0.58f)
             } else {
-                text("합계 ${s(5)}", S / 2, py + ph + S * 0.1f, S * 0.1f, tf(900), red, Paint.Align.CENTER, w * 0.9f)
+                if (s(5).isNotEmpty()) text("합계 ${s(5)}", S / 2, py + ph + S * 0.1f, S * 0.1f, tf(900), red, Paint.Align.CENTER, w * 0.9f)
             }
         }
 
@@ -338,7 +338,7 @@ object PhotoFrames {
                 val l = m + pw + S * 0.04f; val rt = S - m - S * 0.04f; val mw = rt - l
                 val bar = fill(ink)
                 text("영양정보", l, m + S * 0.08f, S * 0.072f, tf(900), ink, Paint.Align.LEFT, mw)
-                text("총 내용량 ${s(0)}", l, m + S * 0.14f, S * 0.034f, tf(500), ink, Paint.Align.LEFT, mw)
+                if (s(0).isNotEmpty()) text("총 내용량 ${s(0)}", l, m + S * 0.14f, S * 0.034f, tf(500), ink, Paint.Align.LEFT, mw)
                 c.drawRect(l, m + S * 0.17f, rt, m + S * 0.188f, bar)
                 var y = m + S * 0.22f
                 text("1일 기준치 대비", rt, y, S * 0.03f, tf(700), ink, Paint.Align.RIGHT, mw)
@@ -350,7 +350,7 @@ object PhotoFrames {
                     text(s(2 + i * 2), rt, y - S * 0.025f, S * 0.044f, tf(900), if (i == 0) red else ink, Paint.Align.RIGHT, mw * 0.44f)
                 }
                 c.drawRect(l, y, rt, y + S * 0.012f, bar)
-                text("※ ${s(11)}", l, y + S * 0.06f, S * 0.034f, tf(700), red, Paint.Align.LEFT, mw)
+                if (s(11).isNotEmpty()) text("※ ${s(11)}", l, y + S * 0.06f, S * 0.034f, tf(700), red, Paint.Align.LEFT, mw)
             } else {
                 photo(RectF(m, m, S - m, m + S * 0.5f))
                 text("영양정보", m + S * 0.07f, m + S * 0.58f, S * 0.09f, tf(900), ink, Paint.Align.LEFT, S * 0.76f)
@@ -485,7 +485,7 @@ object PhotoFrames {
                 shader = LinearGradient(0f, S * 0.53f, 0f, box.bottom, 0, 0x8C000000.toInt(), Shader.TileMode.CLAMP)
             })
             c.restore()
-            val d = dday(s(1)) ?: "D+?"
+            val d = dday(s(1)) ?: ""
             if (big) {
                 text(s(0), S * 0.105f, S * 0.73f, S * 0.065f, tf(700), 0xE6FFFFFF.toInt(), Paint.Align.LEFT, S * 0.8f)
                 text(d, S * 0.1f, S * 0.86f, S * 0.155f, tf(900), WHITE, Paint.Align.LEFT, S * 0.82f)

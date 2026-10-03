@@ -67,14 +67,12 @@ object PhotoWidget {
         try { photoFile(ctx, id, s).takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) } } catch (t: Throwable) { null }
     }
 
-    /** 위젯 크기(dp)대로 그린 그림. 비워 둔 문구 칸은 예시 문구 */
+    /** 위젯 크기(dp)대로 그린 그림. 처음엔 예시 문구, 사용자가 지운 칸은 비워 둠 */
     fun image(ctx: Context, o: Opts, photos: List<Bitmap?>, wDp: Float, hDp: Float, seed: Int): Bitmap {
         val dens = WidgetGeom.density(ctx)
         val k = dens * min(1f, 720f / (max(wDp, hDp) * dens))
         val f = o.frame.coerceIn(0, PhotoFrames.FIELDS.size - 1)
-        val texts = PhotoFrames.FIELDS[f].mapIndexed { i, fd ->
-            PhotoFrames.fill(o.texts[f].getOrNull(i)?.takeIf { it.isNotBlank() } ?: fd.def)
-        }
+        val texts = PhotoFrames.FIELDS[f].mapIndexed { i, fd -> PhotoFrames.fill((o.texts[f].getOrNull(i) ?: fd.def).trim()) }
         val look = PhotoFrames.Look(f, texts, o.paper, o.shape, o.tilt, o.radius, o.borderStyle(), o.borderDp, o.borderColor)
         return PhotoFrames.render(photos, o.crops, look, (wDp * k).toInt(), (hDp * k).toInt(), k, seed)
     }
