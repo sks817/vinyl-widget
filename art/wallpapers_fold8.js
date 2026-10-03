@@ -12,7 +12,7 @@ const lg=(y0,y1,stops)=>{const g=x.createLinearGradient(0,y0,0,y1);stops.forEach
 const rg=(a,b,r,stops)=>{const g=x.createRadialGradient(a,b,0,a,b,r);stops.forEach(([p,col])=>g.addColorStop(p,col));return g};
 function ridge(y,amp,col,step=60,s=1){x.fillStyle=col;x.beginPath();x.moveTo(0,VH);let px=0;x.lineTo(0,y);while(px<=VW+step){const yy=y-Math.abs(Math.sin(px*0.004*s+s))*amp-rnd()*amp*0.25;x.lineTo(px,yy);px+=step}x.lineTo(VW,VH);x.fill()}
 function pine(px,base,h,col){x.fillStyle=col;x.beginPath();x.moveTo(px,base-h);for(let i=0;i<4;i++){const t=(i+1)/4;x.lineTo(px+h*0.22*t+8,base-h+h*t*0.85);x.lineTo(px+h*0.1*t,base-h+h*t*0.85)}x.lineTo(px+6,base);x.lineTo(px-6,base);for(let i=3;i>=0;i--){const t=(i+1)/4;x.lineTo(px-h*0.1*t,base-h+h*t*0.85);x.lineTo(px-h*0.22*t-8,base-h+h*t*0.85)}x.closePath();x.fill()}
-function tent(px,base,w,col,glow){if(glow){x.fillStyle=rg(px,base-w*.3,w*1.6,[[0,'rgba(255,190,110,.55)'],[1,'rgba(255,190,110,0)']]);x.fillRect(px-w*2,base-w*2,w*4,w*3)}
+function tent(px,base,w,col,glow){if(glow){x.fillStyle=rg(px,base-w*.3,w*1.6,[[0,'rgba(255,190,110,.55)'],[1,'rgba(255,190,110,0)']]);x.fillRect(px-w*1.7,base-w*1.95,w*3.4,w*3.4)}
  x.fillStyle=col;x.beginPath();x.moveTo(px-w/2,base);x.lineTo(px,base-w*.62);x.lineTo(px+w/2,base);x.fill();x.fillStyle=glow?'#FFD89A':'rgba(0,0,0,.25)';x.beginPath();x.moveTo(px-w*.12,base);x.lineTo(px,base-w*.4);x.lineTo(px+w*.12,base);x.fill()}
 function stars(n,top,bot,a=.5){const k=VW*(bot-top)/(1080*1700);for(let i=0;i<n*k;i++){x.fillStyle='rgba(235,240,235,'+(.2+rnd()*a)+')';x.beginPath();x.arc(rnd()*VW,top+rnd()*(bot-top),rnd()<.04?2.2:rnd()*1.3+.3,0,7);x.fill()}}
 function grain(a){x.setTransform(1,0,0,1,0,0);const img=x.getImageData(0,0,W,H),d=img.data;for(let i=0;i<d.length;i+=4){const n=(rnd()-.5)*255*a;d[i]+=n;d[i+1]+=n;d[i+2]+=n}x.putImageData(img,0,0)}
@@ -24,7 +24,7 @@ D.forest_night=()=>{x.fillStyle=lg(0,VH,[[0,'#05090A'],[.5,'#0E1A17'],[.8,'#1626
  for(let i=0;i<per(16);i++)pine(rnd()*VW,gy(1880+rnd()*60),260+rnd()*160,'#0C1611');
  ridge(gy(1990),50,'#08100C',60,2.4);for(let i=0;i<per(9);i++){const px=rnd()<.5?rnd()*260:VW-rnd()*260;pine(px,gy(2300),420+rnd()*200,'#040806')}
  x.fillStyle='#040806';x.fillRect(0,gy(2280),VW,VH);
- const fx=cx(540),fy=gy(1930);x.fillStyle=rg(fx,fy,420,[[0,'rgba(255,140,50,.55)'],[.4,'rgba(255,120,40,.18)'],[1,'rgba(255,120,40,0)']]);x.fillRect(fx-540,fy-450,1080,800);
+ const fx=cx(540),fy=gy(1930);x.fillStyle=rg(fx,fy,420,[[0,'rgba(255,140,50,.55)'],[.4,'rgba(255,120,40,.18)'],[1,'rgba(255,120,40,0)']]);x.fillRect(fx-430,fy-430,860,860);
  x.fillStyle='#FF8A3D';x.beginPath();x.moveTo(fx-30,fy);x.quadraticCurveTo(fx,fy-90,fx+30,fy);x.fill();x.fillStyle='#FFD08A';x.beginPath();x.moveTo(fx-12,fy);x.quadraticCurveTo(fx,fy-40,fx+12,fy);x.fill();
  x.strokeStyle='#2A1A10';x.lineWidth=12;x.beginPath();x.moveTo(fx-50,fy+15);x.lineTo(fx+50,fy-5);x.moveTo(fx-50,fy-5);x.lineTo(fx+50,fy+15);x.stroke();grain(.04)};
 D.canyon_dusk=()=>{const hz=gy(1700);x.fillStyle=lg(0,hz,[[0,'#0F2233'],[.45,'#2B4A5C'],[.75,'#C46A3C'],[1,'#E8A15C']]);x.fillRect(0,0,VW,hz);
@@ -34,7 +34,7 @@ D.canyon_dusk=()=>{const hz=gy(1700);x.fillStyle=lg(0,hz,[[0,'#0F2233'],[.45,'#2
  ridge(gy(1640),90,'#5A2A1A',70,1.7);x.fillStyle=lg(gy(1640),VH,[[0,'#3A1C14'],[1,'#120807']]);x.fillRect(0,gy(1640),VW,VH);
  const rx=cx(520);x.fillStyle='#1D1210';x.beginPath();x.moveTo(rx-50,gy(1650));x.quadraticCurveTo(rx,gy(1900),rx-220,VH);x.lineTo(rx+260,VH);x.quadraticCurveTo(rx+60,gy(1900),rx+50,gy(1650));x.fill();
  x.strokeStyle='rgba(255,210,120,.6)';x.setLineDash([26,30]);x.lineWidth=6;x.beginPath();x.moveTo(rx,gy(1660));x.quadraticCurveTo(rx+30,gy(1900),rx+20,VH);x.stroke();x.setLineDash([]);
- const vx=rx-50,vy=gy(1815);x.fillStyle=rg(vx,vy+25,160,[[0,'rgba(255,230,160,.35)'],[1,'rgba(255,230,160,0)']]);x.fillRect(vx-170,vy-140,340,320);
+ const vx=rx-50,vy=gy(1815);x.fillStyle=rg(vx,vy+25,160,[[0,'rgba(255,230,160,.35)'],[1,'rgba(255,230,160,0)']]);x.fillRect(vx-170,vy-145,340,340);
  x.fillStyle='#0B0605';x.fillRect(vx,vy,140,60);x.fillRect(vx+20,vy-30,90,40);x.fillStyle='rgba(255,220,150,.9)';x.fillRect(vx+30,vy-23,30,22);x.fillStyle='#000';x.beginPath();x.arc(vx+30,vy+63,16,0,7);x.arc(vx+115,vy+63,16,0,7);x.fill();grain(.035)};
 D.topo_map=()=>{x.fillStyle='#2E3427';x.fillRect(0,0,VW,VH);
  x.setTransform(1,0,0,1,0,0);const f=(px,py)=>{px/=u;py/=u;return Math.sin(px*.004+1)*Math.cos(py*.003)+Math.sin((px+py)*.0025)*.8+Math.cos(px*.0015-py*.004)*.6};
