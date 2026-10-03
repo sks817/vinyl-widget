@@ -244,7 +244,7 @@ const STICKERS = [
 // 글자 없이 캐릭터만: 그림을 가운데로 모아 크게
 const svg = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}"><g transform="translate(256 262) scale(1.08) translate(-256 -262)">${inner}</g></svg>`;
 
-(async () => {
+if (require.main === module) (async () => {
   const b = await chromium.launch(); const p = await b.newPage();
   await p.setContent(`<html><head><link rel="stylesheet" href="file://${FONTS}"></head><body><canvas id=c></canvas></body></html>`);
   await p.evaluate(() => Promise.all(["900 40px 'Noto Sans KR'"].map(f => document.fonts.load(f))));

@@ -84,9 +84,36 @@ object StickerWidget {
         val e = sp(ctx).edit(); ids.forEach { e.remove("s_$it").remove("p_$it").remove("t_$it").remove("bs_$it").remove("bt_$it").remove("bc_$it") }; e.apply()
     }
 
+    /** 누르면: 시간 흐르는 스티커는 반응(새 마시멜로·장작·데우기), 아니면 고른 앱. 앱이 없으면 스티커 고르기 화면 */
+    private fun click(ctx: Context, id: Int, name: String, anim: Boolean): PendingIntent {
+        if (anim && StickerAnim.interactive(name) && (StickerAnim.tapReacts(ctx, id) || app(ctx, id) == null)) return StickerAnim.tapIntent(ctx, id)
+        val launch = app(ctx, id)?.let { ctx.packageManager.getLaunchIntentForPackage(it) }
+        val intent = launch ?: Intent(ctx, StickerConfigActivity::class.java).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return PendingIntent.getActivity(ctx, 1000 + id, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
     fun build(ctx: Context, id: Int, wDp: Float = 0f, hDp: Float = 0f): RemoteViews {
-        val rv = RemoteViews(ctx.packageName, R.layout.widget_sticker)
         val i = sticker(ctx, id).coerceIn(0, Stickers.RES.size - 1)
+        val name = StickerAnim.nameOf(ctx, i)
+        // 움직이는 스티커 (기울기·테두리는 움직임을 끈 때만)
+        if (StickerAnim.enabled(ctx, id)) {
+            val (key, next) = StickerAnim.state(ctx, id, name)
+            val lid = StickerAnim.layoutId(ctx, key)
+            if (lid != 0) {
+                val rv = RemoteViews(ctx.packageName, lid)
+                val (w, h) = if (wDp > 0f) wDp to hDp else WidgetGeom.sizeDp(AppWidgetManager.getInstance(ctx), id)
+                val s = (min(w, h) - 4f).coerceAtLeast(30f)
+                rv.setViewLayoutWidth(R.id.st_anim, s, android.util.TypedValue.COMPLEX_UNIT_DIP)
+                rv.setViewLayoutHeight(R.id.st_anim, s, android.util.TypedValue.COMPLEX_UNIT_DIP)
+                rv.setContentDescription(R.id.st_anim, Stickers.NAMES[i])
+                rv.setOnClickPendingIntent(R.id.st_root, click(ctx, id, name, true))
+                if (next != null) StickerAnim.schedule(ctx, id, next) else StickerAnim.cancel(ctx, id)
+                return rv
+            }
+        }
+        StickerAnim.cancel(ctx, id)
+        val rv = RemoteViews(ctx.packageName, R.layout.widget_sticker)
         val l = look(ctx, id)
         if (l.tilt == 0 && (l.border == BorderFx.NONE || l.borderDp <= 0)) {
             rv.setImageViewResource(R.id.st_img, Stickers.RES[i])
@@ -97,13 +124,7 @@ object StickerWidget {
             rv.setImageViewBitmap(R.id.st_img, image(ctx, i, l, (w * k).toInt(), (h * k).toInt(), k))
         }
         rv.setContentDescription(R.id.st_img, Stickers.NAMES[i])
-        // 누르면 고른 앱. 앱을 안 골랐거나 지워졌으면 스티커 고르기 화면
-        val launch = app(ctx, id)?.let { ctx.packageManager.getLaunchIntentForPackage(it) }
-        val intent = launch ?: Intent(ctx, StickerConfigActivity::class.java)
-            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        rv.setOnClickPendingIntent(R.id.st_img, PendingIntent.getActivity(ctx, 1000 + id, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+        rv.setOnClickPendingIntent(R.id.st_img, click(ctx, id, name, false))
         return rv
     }
 
@@ -114,6 +135,22 @@ object StickerWidget {
 }
 
 class StickerWidgetProvider : AppWidgetProvider() {
+    /** 시간이 흘러 모습이 바뀔 때(TICK), 눌렀을 때(TAP: 새 마시멜로·장작·데우기) */
+    override fun onReceive(context: Context, intent: Intent) {
+        val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+        when (intent.action) {
+            StickerAnim.ACTION_TICK, StickerAnim.ACTION_TAP -> {
+                if (id == AppWidgetManager.INVALID_APPWIDGET_ID) return
+                if (intent.action == StickerAnim.ACTION_TAP) StickerAnim.reset(context, id)
+                val mgr = AppWidgetManager.getInstance(context)
+                mgr.updateAppWidget(id, StickerWidget.build(context, id))
+                // 모닥불을 새로 피우면 마시멜로 굽는 속도도 바로 반영
+                if (StickerAnim.nameOf(context, StickerWidget.sticker(context, id)) == "fire") StickerWidget.renderAll(context)
+            }
+            else -> super.onReceive(context, intent)
+        }
+    }
+
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (id in appWidgetIds) appWidgetManager.updateAppWidget(id, StickerWidget.build(context, id))
     }
@@ -125,5 +162,6 @@ class StickerWidgetProvider : AppWidgetProvider() {
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         StickerWidget.delete(context, appWidgetIds)
+        StickerAnim.delete(context, appWidgetIds)
     }
 }

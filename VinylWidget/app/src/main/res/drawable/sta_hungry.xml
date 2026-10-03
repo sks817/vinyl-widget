@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 움직이는 스티커 프레임 (art/sticker_anim.js가 만듦). ProgressBar가 level을 돌리면 프레임이 넘어감 -->
+<level-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:maxLevel="1665" android:drawable="@drawable/stf_hungry_0" />
+    <item android:maxLevel="3331" android:drawable="@drawable/stf_hungry_1" />
+    <item android:maxLevel="4997" android:drawable="@drawable/stf_hungry_2" />
+    <item android:maxLevel="6663" android:drawable="@drawable/stf_hungry_3" />
+    <item android:maxLevel="8329" android:drawable="@drawable/stf_hungry_4" />
+    <item android:maxLevel="10000" android:drawable="@drawable/stf_hungry_5" />
+</level-list>

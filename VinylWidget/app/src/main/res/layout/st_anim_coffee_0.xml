@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 움직이는 스티커 (art/sticker_anim.js가 만듦). 크기는 코드에서 위젯 칸에 맞춤 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/st_root"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <ProgressBar android:id="@+id/st_anim"
+        android:layout_width="80dp" android:layout_height="80dp"
+        android:layout_gravity="center"
+        android:indeterminateOnly="true"
+        android:indeterminateDrawable="@drawable/sta_coffee_0"
+        android:indeterminateDuration="1500"
+        android:indeterminateBehavior="repeat" />
+</FrameLayout>
