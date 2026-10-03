@@ -86,6 +86,8 @@ class MainActivity : Activity() {
         root.addView(button("다음 일정 위젯 모두 꾸미기") { openConfig(Kind.MEMO) })
         root.addView(button("병맛 스티커 추가 (1×1, 누르면 고른 앱 열기)") { pin(StickerWidgetProvider::class.java) })
         root.addView(button("사진 스티커 추가 (2×2, 줄이면 1×1 · 영수증·택배 송장·영양성분표)") { pin(PhotoWidgetProvider::class.java) })
+        root.addView(button("타임테이블 추가 (4×2 · 크게 늘리면 주간 · 세로로 길게 하면 세로형)") { pin(TimetableWidgetProvider::class.java) })
+        root.addView(button("타임테이블 일정 입력") { startActivity(android.content.Intent(this, TimetableConfigActivity::class.java)) })
         root.addView(button("배경화면 고르기 (위젯과 어울리는 12종 · 폴드8 크기 포함)") {
             startActivity(android.content.Intent(this, WallpaperActivity::class.java))
         })

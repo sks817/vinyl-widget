@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 4×2 기본(오늘). 크게 늘리면 주간, 세로로 길게 하면 세로형, 두 사람이면 2명 배치 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp" android:minHeight="110dp"
+    android:minResizeWidth="110dp" android:minResizeHeight="110dp"
+    android:targetCellWidth="4" android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_timetable"
+    android:previewLayout="@layout/widget_timetable"
+    android:description="@string/tt_desc"
+    android:configure="com.kwansik.vinylwidget.TimetableConfigActivity"
+    android:widgetFeatures="reconfigurable"
+    android:widgetCategory="home_screen" />
