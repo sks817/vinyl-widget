@@ -14,6 +14,8 @@
     <string name="weather_wide_label">날씨·날짜 (1×4)</string>
     <string name="weather_wide_desc">날씨와 시간에 따라 바뀌는 캠핑 풍경</string>
     <string name="sticker_label">병맛 스티커</string>
+    <string name="photo_label">사진 스티커</string>
+    <string name="photo_desc">영수증·택배 송장·영양성분표 병맛 프레임에 내 사진 (2×2, 줄이면 1×1)</string>
     <string name="sticker_desc">누르면 원하는 앱이 열리는 1×1 스티커</string>
     <string name="memo_label">다음 일정</string>
     <string name="memo_desc">다음 일정을 크게, 나머지는 목록으로 (4×1·4×2·2×4)</string>

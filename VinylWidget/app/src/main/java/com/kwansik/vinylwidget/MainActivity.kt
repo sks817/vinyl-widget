@@ -78,13 +78,14 @@ class MainActivity : Activity() {
         root.addView(button("날씨 지금 새로고침") { refreshLocationAndFetch() })
 
         // 더 많은 위젯
-        root.addView(title("다음 일정 · 병맛 스티커"))
+        root.addView(title("다음 일정 · 병맛 스티커 · 사진 스티커"))
         root.addView(button("캘린더 권한 허용 (다음 일정)") {
             requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR), 2)
         })
         root.addView(button("다음 일정 위젯 추가 (4×1, 늘리면 4×2·2×4)") { pin(MemoWidgetProvider::class.java) })
         root.addView(button("다음 일정 위젯 모두 꾸미기") { openConfig(Kind.MEMO) })
         root.addView(button("병맛 스티커 추가 (1×1, 누르면 고른 앱 열기)") { pin(StickerWidgetProvider::class.java) })
+        root.addView(button("사진 스티커 추가 (2×2, 줄이면 1×1 · 영수증·택배 송장·영양성분표)") { pin(PhotoWidgetProvider::class.java) })
 
         root.addView(body().apply {
             setPadding(0, pad, 0, 0)
