@@ -5,7 +5,7 @@
     android:minResizeWidth="40dp" android:minResizeHeight="40dp"
     android:targetCellWidth="2" android:targetCellHeight="2"
     android:resizeMode="horizontal|vertical"
-    android:updatePeriodMillis="0"
+    android:updatePeriodMillis="3600000"
     android:initialLayout="@layout/widget_photo"
     android:previewLayout="@layout/widget_photo"
     android:description="@string/photo_desc"

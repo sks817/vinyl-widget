@@ -84,6 +84,10 @@ class ConfigActivity : Activity() {
     private var disc = 0
     private var player = WidgetStyle.VINYL
     private var nightFg = 0
+    private var border = BorderFx.NONE
+    private var borderDp = 4
+    private var borderColor = 0
+    private val sheet by lazy { SheetUi(this) }
 
     private val hsv = FloatArray(3)
     private var updatingUi = false
@@ -131,6 +135,7 @@ class ConfigActivity : Activity() {
         design = s.design; corner = s.corner; glassArt = s.glassArt; artShadow = s.artShadow
         quirky = s.quirky; point = s.point; bg = s.bg
         disc = s.disc; player = s.player; nightFg = s.nightFg
+        border = s.border; borderDp = s.borderDp; borderColor = s.borderColor
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(buildPreview(), LinearLayout.LayoutParams(MATCH, dp(236)))
@@ -144,7 +149,8 @@ class ConfigActivity : Activity() {
 
     private fun targetId(): Int? = widgetId.takeIf { it != AppWidgetManager.INVALID_APPWIDGET_ID }
     private fun resultIntent() = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt, artShadow, quirky, point, bg, disc, player, nightFg)
+    private fun currentStyle() = WidgetStyle(white, transparency, color, design, glass, corner, glassArt, artShadow, quirky, point, bg, disc, player, nightFg,
+        border, borderDp, borderColor)
     private fun isWeather() = kind == Kind.WEATHER || kind == Kind.WEATHER_WIDE
 
     // ================= 미리보기 =================
@@ -212,6 +218,12 @@ class ConfigActivity : Activity() {
         if (kind == Kind.MEMO) body.addView(memoCard())
         body.addView(themeCard())
         body.addView(backgroundCard())
+        // 테두리 (모든 위젯 공통): 스타일 · 두께 · 색
+        body.addView(sheet.borderCard({ border }, { borderDp }, { borderColor }) { st, t, col ->
+            if (st != null) border = st; if (t != null) borderDp = t; if (col != null) borderColor = col
+            renderPreview()
+        })
+        refreshers += { sheet.refresh() }
         body.addView(colorCard())
 
         sheet.addView(ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = false },

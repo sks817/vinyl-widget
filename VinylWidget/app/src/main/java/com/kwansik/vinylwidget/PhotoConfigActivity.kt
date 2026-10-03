@@ -1,15 +1,13 @@
 package com.kwansik.vinylwidget
 
+import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.DatePickerDialog
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.graphics.Bitmap
-import android.graphics.Color
 import android.graphics.ImageDecoder
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -18,47 +16,42 @@ import android.text.Editable
 import android.text.InputFilter
 import android.text.TextWatcher
 import android.view.Gravity
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
-import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
-import android.widget.TextView
 import android.widget.Toast
+import java.time.LocalDate
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * 사진 스티커 꾸미기: 위 = 2×2·1×1 미리보기, 아래 = 사진 고르기 / 프레임 / 문구(글자 수 제한) / 종이 색 / 기울기·모서리 R.
- * 스티커 고르기 화면과 같은 어두운 시트 + 배경화면 강조색
+ * 사진 스티커 꾸미기: 위 = 2×2·1×1 미리보기(끌어서 위치, 벌려서 확대), 아래 = 사진 / 프레임 / 다이컷 모양 /
+ * 문구(글자 수 제한) / 종이 색 / 테두리 / 기울기·모서리 R
  */
 class PhotoConfigActivity : Activity() {
     private var widgetId = AppWidgetManager.INVALID_APPWIDGET_ID
     private lateinit var o: PhotoWidget.Opts
-    private var photo: Bitmap? = null
-    private var newPhoto = false
-
-    private val sheetBg by lazy { getColor(android.R.color.system_neutral1_900) }
-    private val cardBg by lazy { getColor(android.R.color.system_neutral1_800) }
-    private val trackBg by lazy { getColor(android.R.color.system_neutral1_700) }
-    private val onSurface by lazy { getColor(android.R.color.system_neutral1_50) }
-    private val onSurfaceVar by lazy { getColor(android.R.color.system_neutral2_200) }
-    private val outline by lazy { getColor(android.R.color.system_neutral2_500) }
-    private val accent by lazy { getColor(android.R.color.system_accent1_200) }
-    private val onAccent by lazy { getColor(android.R.color.system_accent1_800) }
+    private lateinit var ui: SheetUi
+    private val photos = MutableList<Bitmap?>(PhotoWidget.SLOTS) { null }
+    private val changed = mutableSetOf<Int>()
+    private var slot = 0
 
     private lateinit var prevBig: ImageView
     private lateinit var prevSmall: ImageView
     private lateinit var fieldsBox: LinearLayout
-    private val frameChips = mutableListOf<TextView>()
-    private val paperCells = mutableListOf<View>()
-
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
-    private val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
-    private val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
+    private lateinit var slotRow: View
+    private lateinit var shapeCard: View
+    private lateinit var paperCard: View
+    private lateinit var zoomBar: SeekBar
+    private lateinit var xBar: SeekBar
+    private lateinit var yBar: SeekBar
+    private var syncing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,134 +60,186 @@ class PhotoConfigActivity : Activity() {
         setResult(RESULT_CANCELED, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId))
         if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) { finish(); return }
         o = PhotoWidget.load(this, widgetId)
-        photo = PhotoWidget.loadPhoto(this, widgetId)
+        PhotoWidget.loadPhotos(this, widgetId).forEachIndexed { i, b -> photos[i] = b }
+        ui = SheetUi(this)
+        val dp = ui::dp
 
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(sheetBg) }
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(ui.sheetBg) }
         val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(12), dp(16), dp(16)) }
 
-        body.addView(text("사진 스티커", 22f, onSurface, true))
-        body.addView(text("병맛 프레임에 사진을 붙여요 · 2×2, 줄이면 1×1", 13f, onSurfaceVar).apply { setPadding(0, dp(2), 0, dp(12)) })
+        body.addView(ui.text("사진 스티커", 22f, ui.onSurface, true))
+        body.addView(ui.text("2×2, 줄이면 1×1 · 미리보기를 끌면 사진 위치, 두 손가락으로 벌리면 확대", 13f, ui.onSurfaceVar).apply { setPadding(0, dp(2), 0, dp(12)) })
 
         // 미리보기: 2×2 + 1×1
         val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL }
         prevBig = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
         prevSmall = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
-        top.addView(labeled(prevBig, "2×2"), LinearLayout.LayoutParams(dp(190), WRAP))
-        top.addView(labeled(prevSmall, "1×1"), LinearLayout.LayoutParams(dp(96), WRAP).apply { marginStart = dp(18) })
-        (prevBig.layoutParams as LinearLayout.LayoutParams).height = dp(190)
-        (prevSmall.layoutParams as LinearLayout.LayoutParams).height = dp(90)
+        top.addView(labeled(prevBig, "2×2", dp(200)), LinearLayout.LayoutParams(dp(200), ui.WRAP))
+        top.addView(labeled(prevSmall, "1×1", dp(90)), LinearLayout.LayoutParams(dp(96), ui.WRAP).apply { marginStart = dp(16) })
         body.addView(top)
+        attachGestures(prevBig)
 
-        body.addView(card("사진").also { c ->
-            c.addView(text("갤러리에서 사진 고르기", 15f, onAccent, true).apply {
-                gravity = Gravity.CENTER; background = rounded(accent, 22f)
-                setOnClickListener { pick() }
-            }, LinearLayout.LayoutParams(MATCH, dp(46)).apply { topMargin = dp(10) })
+        // 사진: 칸 고르기(네컷) + 고르기 버튼 + 확대·위치
+        body.addView(ui.card("사진").also { c ->
+            slotRow = ui.chips(Array(PhotoWidget.SLOTS) { "사진 ${it + 1}" }, { slot }) { slot = it; syncCrop(); ui.refresh() }
+            c.addView(slotRow)
+            c.addView(ui.button("갤러리에서 사진 고르기") { pick() }, LinearLayout.LayoutParams(ui.MATCH, dp(46)).apply { topMargin = dp(10) })
+            ui.slider("확대", 300, 0, { "${100 + it}%" }) { if (!syncing) { o.crops[slot].zoom = 1f + it / 100f; renderPreview() } }.let { (v, b) -> zoomBar = b; c.addView(v) }
+            ui.slider("좌우 위치", 200, 100, { pos(it, "왼쪽", "오른쪽") }) { if (!syncing) { o.crops[slot].ox = (it - 100) / 100f; renderPreview() } }.let { (v, b) -> xBar = b; c.addView(v) }
+            ui.slider("위아래 위치", 200, 100, { pos(it, "위", "아래") }) { if (!syncing) { o.crops[slot].oy = (it - 100) / 100f; renderPreview() } }.let { (v, b) -> yBar = b; c.addView(v) }
+            c.addView(ui.button("사진 위치 원래대로", primary = false) {
+                o.crops[slot].apply { zoom = 1f; ox = 0f; oy = 0f }; syncCrop(); renderPreview()
+            }, LinearLayout.LayoutParams(ui.MATCH, dp(40)).apply { topMargin = dp(8) })
         })
 
-        body.addView(card("프레임").also { c ->
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(10), 0, 0) }
-            PhotoFrames.NAMES.forEachIndexed { i, n ->
-                val chip = text(n, 14f, onSurface, true).apply {
-                    gravity = Gravity.CENTER; setOnClickListener { o.frame = i; buildFields(); refresh() }
-                }
-                frameChips += chip
-                row.addView(chip, LinearLayout.LayoutParams(0, dp(40), 1f).apply { if (i > 0) marginStart = dp(8) })
-            }
-            c.addView(row)
+        body.addView(ui.card("프레임").also { c ->
+            c.addView(ui.chips(PhotoFrames.NAMES, { o.frame }) { o.frame = it; if (slot >= PhotoFrames.slots(it)) slot = 0; syncCrop(); buildFields(); ui.refresh(); renderPreview() })
         })
 
-        body.addView(card("문구").also { c ->
-            c.addView(text("칸마다 글자 수 제한 안에서 직접 써 주세요. 비워 두면 예시 문구가 들어가요", 12f, onSurfaceVar).apply { setPadding(0, dp(2), 0, dp(4)) })
+        shapeCard = ui.card("다이컷 모양").also { c ->
+            c.addView(ui.chips(PhotoFrames.SHAPES, { o.shape }) { o.shape = it; ui.refresh(); renderPreview() })
+        }
+        body.addView(shapeCard)
+
+        body.addView(ui.card("문구", "칸마다 글자 수 제한 안에서 직접 써 주세요. 비워 두면 예시 문구가 들어가요").also { c ->
             fieldsBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             c.addView(fieldsBox)
         })
 
-        body.addView(card("종이 색").also { c ->
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(10), 0, 0) }
-            PhotoFrames.PAPERS.forEachIndexed { i, col ->
-                val cell = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; tag = col
-                    setOnClickListener { o.paper = col; refresh() }
-                }
-                cell.addView(View(this), LinearLayout.LayoutParams(dp(34), dp(34)))
-                cell.addView(text(PhotoFrames.PAPER_NAMES[i], 11f, onSurfaceVar).apply { gravity = Gravity.CENTER; setPadding(0, dp(4), 0, 0) })
-                paperCells += cell
-                row.addView(cell, LinearLayout.LayoutParams(0, WRAP, 1f))
-            }
-            c.addView(row)
+        paperCard = ui.card("종이 색").also { c ->
+            c.addView(ui.swatches(PhotoFrames.PAPERS, PhotoFrames.PAPER_NAMES, { PhotoFrames.paperOf(o.frame, it) }, { o.paper }) { o.paper = it; ui.refresh(); renderPreview() })
+        }
+        body.addView(paperCard)
+
+        body.addView(ui.borderCard({ o.borderStyle() }, { o.borderDp }, { o.borderColor }) { s, t, col ->
+            if (s != null) o.border = s; if (t != null) o.borderDp = t; if (col != null) o.borderColor = col
+            renderPreview()
         })
 
-        body.addView(card("모양").also { c ->
-            c.addView(slider("기울기", 30, o.tilt + 15, { v -> val d = v - 15; if (d > 0) "+$d°" else "$d°" }) { o.tilt = it - 15; renderPreview() })
-            c.addView(slider("모서리 R", 50, o.radius, { "$it%" }) { o.radius = it; renderPreview() })
+        body.addView(ui.card("모양").also { c ->
+            c.addView(ui.slider("기울기", 30, o.tilt + 15, { v -> val d = v - 15; if (d > 0) "+$d°" else "$d°" }) { o.tilt = it - 15; renderPreview() }.first)
+            c.addView(ui.slider("모서리 R", 50, o.radius, { "$it%" }) { o.radius = it; renderPreview() }.first)
         })
 
-        root.addView(ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = false }, LinearLayout.LayoutParams(MATCH, 0, 1f))
-        root.addView(bottomBar())
+        root.addView(ScrollView(this).apply { addView(body); isVerticalScrollBarEnabled = false }, LinearLayout.LayoutParams(ui.MATCH, 0, 1f))
+        root.addView(ui.bottomBar("붙이기", { finish() }) { save() })
         setContentView(root)
         root.padForSystemBars()
 
+        ui.refresh()   // 칩·색 표시 먼저
+        syncCrop()
         buildFields()
-        refresh()
+        refreshVisibility()
+        renderPreview()
     }
 
-    /** 지금 프레임의 문구 칸들: [이름] [입력칸] [글자 수] */
+    private fun pos(v: Int, lo: String, hi: String) = when {
+        v < 100 -> "$lo ${100 - v}"
+        v > 100 -> "$hi ${v - 100}"
+        else -> "가운데"
+    }
+
+    /** 지금 사진 칸의 확대·위치를 슬라이더에 */
+    private fun syncCrop() {
+        if (!::zoomBar.isInitialized) return
+        syncing = true
+        val cr = o.crops[slot]
+        zoomBar.progress = ((cr.zoom - 1f) * 100).roundToInt().coerceIn(0, 300)
+        xBar.progress = (cr.ox * 100 + 100).roundToInt().coerceIn(0, 200)
+        yBar.progress = (cr.oy * 100 + 100).roundToInt().coerceIn(0, 200)
+        syncing = false
+    }
+
+    private fun refreshVisibility() {
+        slotRow.visibility = if (PhotoFrames.slots(o.frame) > 1) View.VISIBLE else View.GONE
+        shapeCard.visibility = if (o.frame == PhotoFrames.DIECUT) View.VISIBLE else View.GONE
+        paperCard.visibility = if (PhotoFrames.hasPaper(o.frame)) View.VISIBLE else View.GONE
+    }
+
+    /** 미리보기를 끌면 위치, 벌리면 확대 (지금 고른 사진 칸) */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun attachGestures(v: ImageView) {
+        val scale = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(d: ScaleGestureDetector): Boolean {
+                val cr = o.crops[slot]; cr.zoom = (cr.zoom * d.scaleFactor).coerceIn(1f, 4f); syncCrop(); renderPreview(); return true
+            }
+        })
+        var lx = 0f; var ly = 0f
+        v.setOnTouchListener { view, e ->
+            scale.onTouchEvent(e)
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { lx = e.x; ly = e.y; view.parent.requestDisallowInterceptTouchEvent(true) }
+                MotionEvent.ACTION_MOVE -> if (!scale.isInProgress && e.pointerCount == 1) {
+                    val cr = o.crops[slot]; val w = max(1, view.width).toFloat()
+                    cr.ox = (cr.ox - (e.x - lx) / (w * 0.35f)).coerceIn(-1f, 1f)
+                    cr.oy = (cr.oy - (e.y - ly) / (w * 0.35f)).coerceIn(-1f, 1f)
+                    lx = e.x; ly = e.y; syncCrop(); renderPreview()
+                }
+                MotionEvent.ACTION_POINTER_UP -> { val i = if (e.actionIndex == 0) 1 else 0; lx = e.getX(i); ly = e.getY(i) }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> view.parent.requestDisallowInterceptTouchEvent(false)
+            }
+            true
+        }
+    }
+
+    /** 지금 프레임의 문구 칸들: [이름] [입력칸] [글자 수]. 날짜 칸은 눌러서 달력으로 */
     private fun buildFields() {
+        refreshVisibility()
         fieldsBox.removeAllViews()
         val f = o.frame
+        val dp = ui::dp
+        if (PhotoFrames.FIELDS[f].isEmpty()) {
+            fieldsBox.addView(ui.text("이 프레임은 문구 없이 사진만 들어가요", 13f, ui.onSurfaceVar).apply { setPadding(0, dp(8), 0, 0) })
+            return
+        }
         PhotoFrames.FIELDS[f].forEachIndexed { i, fd ->
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(6), 0, 0) }
-            row.addView(text(fd.label, 13f, onSurfaceVar), LinearLayout.LayoutParams(dp(76), WRAP))
-            val count = text("", 12f, outline).apply { gravity = Gravity.END }
+            row.addView(ui.text(fd.label, 13f, ui.onSurfaceVar), LinearLayout.LayoutParams(dp(76), ui.WRAP))
+            val count = ui.text("", 12f, ui.outline).apply { gravity = Gravity.END }
             val edit = EditText(this).apply {
-                textSize = 15f; setTextColor(onSurface); setHintTextColor(outline); hint = fd.def; isSingleLine = true
+                textSize = 15f; setTextColor(ui.onSurface); setHintTextColor(ui.outline); hint = PhotoFrames.fill(fd.def); isSingleLine = true
                 filters = arrayOf(InputFilter.LengthFilter(fd.max))
-                background = rounded(trackBg, 12f); setPadding(dp(12), dp(8), dp(12), dp(8))
+                background = ui.rounded(ui.trackBg, 12f); setPadding(dp(12), dp(8), dp(12), dp(8))
                 setText(o.texts[f][i])
                 addTextChangedListener(object : TextWatcher {
                     override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                     override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                     override fun afterTextChanged(s: Editable?) {
                         o.texts[f][i] = s?.toString().orEmpty()
-                        count.text = "${o.texts[f][i].length}/${fd.max}"
+                        count.text = if (fd.date) "" else "${o.texts[f][i].length}/${fd.max}"
                         renderPreview()
                     }
                 })
+                if (fd.date) {
+                    isFocusable = false; isCursorVisible = false
+                    setOnClickListener { pickDate(this) }
+                }
             }
-            count.text = "${o.texts[f][i].length}/${fd.max}"
-            row.addView(edit, LinearLayout.LayoutParams(0, WRAP, 1f))
-            row.addView(count, LinearLayout.LayoutParams(dp(40), WRAP))
+            count.text = if (fd.date) "" else "${o.texts[f][i].length}/${fd.max}"
+            row.addView(edit, LinearLayout.LayoutParams(0, ui.WRAP, 1f))
+            row.addView(count, LinearLayout.LayoutParams(dp(40), ui.WRAP))
             fieldsBox.addView(row)
         }
     }
 
-    private fun refresh() {
-        frameChips.forEachIndexed { i, chip ->
-            val on = i == o.frame
-            chip.background = if (on) rounded(accent, 20f) else rounded(Color.TRANSPARENT, 20f, outline, 1)
-            chip.setTextColor(if (on) onAccent else onSurface)
-        }
-        paperCells.forEach { cell ->
-            val col = cell.tag as Int
-            val on = col == o.paper
-            cell.getChildAt(0).background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL; setColor(PhotoFrames.paperOf(o.frame, col))
-                setStroke(dp(if (on) 3 else 1), if (on) accent else outline)
-            }
-        }
-        renderPreview()
+    private fun pickDate(edit: EditText) {
+        val cur = try {
+            val p = edit.text.toString().split('.', '-', '/').map { it.trim().toInt() }; LocalDate.of(p[0], p[1], p[2])
+        } catch (e: Exception) { LocalDate.now() }
+        DatePickerDialog(this, { _, y, m, d -> edit.setText("%04d.%02d.%02d".format(y, m + 1, d)) }, cur.year, cur.monthValue - 1, cur.dayOfMonth).show()
     }
 
     private fun renderPreview() {
-        prevBig.setImageBitmap(PhotoWidget.image(this, o, photo, 170f, 170f, widgetId))
-        prevSmall.setImageBitmap(PhotoWidget.image(this, o, photo, 80f, 80f, widgetId))
+        prevBig.setImageBitmap(PhotoWidget.image(this, o, photos, 170f, 170f, widgetId))
+        prevSmall.setImageBitmap(PhotoWidget.image(this, o, photos, 80f, 80f, widgetId))
     }
 
-    // ---- 사진 고르기 (Android 13+ 사진 선택기, 그 아래는 파일 고르기) ----
+    // ---- 사진 고르기 (Android 13+ 사진 선택기, 그 아래는 파일 고르기). 네컷은 지금 칸부터 여러 장 ----
     private fun pick() {
-        val i = if (Build.VERSION.SDK_INT >= 33) Intent(MediaStore.ACTION_PICK_IMAGES).setType("image/*")
-                else Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE)
+        val n = PhotoFrames.slots(o.frame) - slot
+        val i = if (Build.VERSION.SDK_INT >= 33) Intent(MediaStore.ACTION_PICK_IMAGES).setType("image/*").also {
+            if (n > 1) it.putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, n)
+        } else Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE, n > 1)
         try {
             @Suppress("DEPRECATION") startActivityForResult(i, REQ_PICK)
         } catch (e: ActivityNotFoundException) {
@@ -210,13 +255,21 @@ class PhotoConfigActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
-        val uri = data?.data
-        if (requestCode != REQ_PICK || resultCode != RESULT_OK || uri == null) return
+        if (requestCode != REQ_PICK || resultCode != RESULT_OK || data == null) return
+        val uris = ArrayList<Uri>()
+        data.clipData?.let { cd -> for (k in 0 until cd.itemCount) uris += cd.getItemAt(k).uri }
+        if (uris.isEmpty()) data.data?.let { uris += it }
+        if (uris.isEmpty()) return
+        val start = slot
+        val n = PhotoFrames.slots(o.frame)
         Thread {
-            val b = decode(uri)
+            val got = uris.take(n - start).map { decode(it) }
             runOnUiThread {
-                if (b == null) Toast.makeText(this, "사진을 읽지 못했어요", Toast.LENGTH_SHORT).show()
-                else { photo = b; newPhoto = true; renderPreview() }
+                if (got.all { it == null }) { Toast.makeText(this, "사진을 읽지 못했어요", Toast.LENGTH_SHORT).show(); return@runOnUiThread }
+                got.forEachIndexed { k, b ->
+                    if (b != null) { photos[start + k] = b; changed += start + k; o.crops[start + k].apply { zoom = 1f; ox = 0f; oy = 0f } }
+                }
+                syncCrop(); renderPreview()
             }
         }.start()
     }
@@ -234,8 +287,8 @@ class PhotoConfigActivity : Activity() {
     }
 
     private fun save() {
-        if (newPhoto) photo?.let { b ->
-            try { PhotoWidget.photoFile(this, widgetId).outputStream().use { b.compress(Bitmap.CompressFormat.JPEG, 90, it) } }
+        for (s in changed) photos[s]?.let { b ->
+            try { PhotoWidget.photoFile(this, widgetId, s).outputStream().use { b.compress(Bitmap.CompressFormat.JPEG, 90, it) } }
             catch (t: Throwable) { CrashLog.record(this, "PhotoConfig.save", t) }
         }
         PhotoWidget.save(this, widgetId, o)
@@ -244,64 +297,10 @@ class PhotoConfigActivity : Activity() {
         finish()
     }
 
-    // ---- 화면 조각 ----
-    private fun labeled(v: View, label: String) = LinearLayout(this).apply {
+    private fun labeled(v: View, label: String, h: Int) = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
-        addView(v, LinearLayout.LayoutParams(MATCH, WRAP))
-        addView(text(label, 12f, onSurfaceVar, true).apply { gravity = Gravity.CENTER; setPadding(0, dp(4), 0, 0) })
-    }
-
-    private fun slider(label: String, max: Int, value: Int, format: (Int) -> String, onChange: (Int) -> Unit): View {
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, 0) }
-        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        head.addView(text(label, 15f, onSurface, true), LinearLayout.LayoutParams(0, WRAP, 1f))
-        val v = text(format(value), 15f, accent, true)
-        head.addView(v)
-        col.addView(head)
-        col.addView(SeekBar(this).apply {
-            this.max = max; progress = value
-            progressTintList = ColorStateList.valueOf(accent)
-            progressBackgroundTintList = ColorStateList.valueOf(trackBg)
-            thumbTintList = ColorStateList.valueOf(accent)
-            setPadding(dp(4), dp(10), dp(4), dp(6))
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) { v.text = format(p); onChange(p) }
-                override fun onStartTrackingTouch(sb: SeekBar?) {}
-                override fun onStopTrackingTouch(sb: SeekBar?) {}
-            })
-        })
-        return col
-    }
-
-    private fun bottomBar(): View {
-        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(16), dp(10), dp(16), dp(14)); setBackgroundColor(sheetBg) }
-        val cancel = text("취소", 16f, onSurface).apply {
-            gravity = Gravity.CENTER; background = rounded(Color.TRANSPARENT, 26f, outline, 1); setOnClickListener { finish() }
-        }
-        val ok = text("붙이기", 16f, onAccent, true).apply {
-            gravity = Gravity.CENTER; background = rounded(accent, 26f); setOnClickListener { save() }
-        }
-        bar.addView(cancel, LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginEnd = dp(10) })
-        bar.addView(ok, LinearLayout.LayoutParams(0, dp(52), 2f))
-        return bar
-    }
-
-    private fun card(title: String) = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        background = rounded(cardBg, 24f)
-        setPadding(dp(14), dp(14), dp(14), dp(12))
-        addView(text(title, 16f, onSurface, true))
-        layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(12) }
-    }
-
-    private fun text(s: String, size: Float, c: Int, bold: Boolean = false) = TextView(this).apply {
-        text = s; textSize = size; setTextColor(c)
-        typeface = if (bold) Typeface.create("sans-serif-medium", Typeface.BOLD) else Typeface.DEFAULT
-    }
-
-    private fun rounded(fill: Int, radiusDp: Float, stroke: Int = 0, strokeDp: Int = 0) = GradientDrawable().apply {
-        setColor(fill); cornerRadius = radiusDp * resources.displayMetrics.density
-        if (strokeDp > 0) setStroke(dp(strokeDp), stroke)
+        addView(v, LinearLayout.LayoutParams(ui.MATCH, h))
+        addView(ui.text(label, 12f, ui.onSurfaceVar, true).apply { gravity = Gravity.CENTER; setPadding(0, ui.dp(4), 0, 0) })
     }
 
     companion object { private const val REQ_PICK = 71 }

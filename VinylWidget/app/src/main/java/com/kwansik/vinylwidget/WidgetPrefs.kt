@@ -24,7 +24,9 @@ data class WidgetStyle(
     val quirky: Boolean = false, val point: Int = WidgetStyle.DEFAULT_POINT,
     val bg: Int = 0,
     val disc: Int = 0, val player: Int = WidgetStyle.VINYL,
-    val nightFg: Int = 0
+    val nightFg: Int = 0,
+    /** 테두리 스타일(BorderFx) · 두께(dp) · 색(0 = 스타일 기본) */
+    val border: Int = BorderFx.NONE, val borderDp: Int = 4, val borderColor: Int = 0
 ) {
     companion object {
         /** 달력 디자인 윗부분 기본 색 (벽돌색) */
@@ -138,7 +140,10 @@ object WidgetPrefs {
             p.getInt(dk(k, "bc"), d.bg),
             p.getInt(dk(k, "dc"), d.disc),
             p.getInt(dk(k, "pl"), d.player),
-            p.getInt(dk(k, "nf"), d.nightFg)
+            p.getInt(dk(k, "nf"), d.nightFg),
+            p.getInt(dk(k, "bs"), d.border),
+            p.getInt(dk(k, "bt"), d.borderDp),
+            p.getInt(dk(k, "bk"), d.borderColor)
         )
         if (id == null) return base
         return WidgetStyle(
@@ -155,7 +160,10 @@ object WidgetPrefs {
             p.getInt("bc_$id", base.bg),
             p.getInt("dc_$id", base.disc),
             p.getInt("pl_$id", base.player),
-            p.getInt("nf_$id", base.nightFg)
+            p.getInt("nf_$id", base.nightFg),
+            p.getInt("bs_$id", base.border),
+            p.getInt("bt_$id", base.borderDp),
+            p.getInt("bk_$id", base.borderColor)
         )
     }
 
@@ -168,12 +176,14 @@ object WidgetPrefs {
                 .putInt("r_$id", s.corner).putBoolean("ga_$id", s.glassArt).putBoolean("sh_$id", s.artShadow)
                 .putBoolean("q_$id", s.quirky).putInt("pc_$id", s.point).putInt("bc_$id", s.bg)
                 .putInt("dc_$id", s.disc).putInt("pl_$id", s.player).putInt("nf_$id", s.nightFg)
+                .putInt("bs_$id", s.border).putInt("bt_$id", s.borderDp).putInt("bk_$id", s.borderColor)
         } else {
             e.putBoolean(dk(k, "w"), s.white).putInt(dk(k, "a"), s.transparency)
                 .putInt(dk(k, "f"), s.fg).putInt(dk(k, "d"), s.design).putBoolean(dk(k, "g"), s.glass)
                 .putInt(dk(k, "r"), s.corner).putBoolean(dk(k, "ga"), s.glassArt).putBoolean(dk(k, "sh"), s.artShadow)
                 .putBoolean(dk(k, "q"), s.quirky).putInt(dk(k, "pc"), s.point).putInt(dk(k, "bc"), s.bg)
                 .putInt(dk(k, "dc"), s.disc).putInt(dk(k, "pl"), s.player).putInt(dk(k, "nf"), s.nightFg)
+                .putInt(dk(k, "bs"), s.border).putInt(dk(k, "bt"), s.borderDp).putInt(dk(k, "bk"), s.borderColor)
             val ids = AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, KindConfig.provider(k)))
             ids.forEach { removeId(e, it) }
         }
@@ -187,7 +197,7 @@ object WidgetPrefs {
     }
 
     private fun removeId(e: android.content.SharedPreferences.Editor, id: Int) {
-        for (f in listOf("w", "t", "c", "d", "a", "f", "g", "r", "ga", "sh", "q", "pc", "bc", "dc", "pl", "nf")) e.remove("${f}_$id")
+        for (f in listOf("w", "t", "c", "d", "a", "f", "g", "r", "ga", "sh", "q", "pc", "bc", "dc", "pl", "nf", "bs", "bt", "bk")) e.remove("${f}_$id")
     }
 
     fun alphaOf(transparency: Int): Int = ((100 - transparency) * 255 / 100).coerceIn(0, 255)

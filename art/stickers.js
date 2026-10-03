@@ -130,6 +130,115 @@ const STICKERS = [
     ${body(230, 265, 120, 115, '#FFE066', 11)}${face(230, 270, 150, 'happy', 'tongue')}
     <rect x="330" y="230" width="70" height="80" rx="20" fill="#FFE066" ${st()}/><path d="M345 230 Q345 160 375 165 Q395 170 385 230" fill="#FFE066" ${st()}/>
     ${sparkle(410, 130, 30)}${sparkle(100, 130, 20, '#fff')}`],
+  // ---- 유행어 추가 ----
+  ['st_lucky', '럭키비키', '#7ED99A', () => `
+    ${[0, 90, 180, 270].map(a => `<path d="M256 250 C206 215 170 160 212 128 C236 110 256 132 256 150 C256 132 276 110 300 128 C342 160 306 215 256 250 Z" fill="#7ED99A" ${st()} transform="rotate(${a + 45} 256 250)"/>`).join('')}
+    <path d="M256 330 Q262 390 300 430" fill="none" ${st(LW * 1.2)}/>
+    <circle cx="256" cy="250" r="62" fill="#B8F0C6" ${st()}/>${face(256, 255, 110, 'happy', 'open')}
+    ${sparkle(420, 110, 32)}${sparkle(95, 120, 24)}${sparkle(420, 380, 18, '#fff')}`],
+  ['st_love', '사랑해', '#FF7A9C', () => `
+    <path d="M256 420 C130 330 90 250 120 185 C150 120 230 120 256 180 C282 120 362 120 392 185 C422 250 382 330 256 420 Z" fill="#FF7A9C" ${st()}/>
+    ${face(256, 260, 150, 'happy', 'smile')}
+    <path d="M405 120 q0 -22 20 -22 q20 0 20 22 q0 22 -40 44 q-40 -22 -40 -44 q0 -22 20 -22 q20 0 20 22 Z" fill="#FFB3C7" ${st(LW * 0.7)}/>
+    <path d="M100 110 q0 -15 14 -15 q14 0 14 15 q0 15 -28 30 q-28 -15 -28 -30 q0 -15 14 -15 q14 0 14 15 Z" fill="#FFB3C7" ${st(LW * 0.6)}/>`],
+  ['st_thanks', '감사합니다', '#FFD2A6', () => `
+    <g transform="rotate(-22 256 300)">${body(256, 290, 125, 115, '#FFD2A6', 12)}${face(256, 300, 150, 'happy', 'smile')}</g>
+    <path d="M150 380 q-30 20 -10 45 M360 380 q30 20 10 45" fill="none" ${st()}/>
+    ${[[100, 130], [420, 150], [400, 70]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="16" fill="#FFE066" ${st(LW * 0.6)}/>${[0, 72, 144, 216, 288].map(a => `<ellipse cx="${x}" cy="${y - 22}" rx="10" ry="14" fill="#FF9EB5" ${st(LW * 0.5)} transform="rotate(${a} ${x} ${y})"/>`).join('')}<circle cx="${x}" cy="${y}" r="10" fill="#FFE066" stroke="none"/>`).join('')}`],
+  ['st_fighting', '화이팅', '#FFB86B', () => `
+    ${body(230, 290, 120, 110, '#FFB86B', 13)}${face(230, 300, 145, 'angry', 'open', false)}
+    <path d="M115 235 Q230 190 345 235" fill="none" stroke="#FF4D4D" stroke-width="30" stroke-linecap="round"/><path d="M115 235 Q230 190 345 235" fill="none" ${st(LW * 0.6)}/>
+    <path d="M345 232 l45 -25 M345 238 l40 15" stroke="#FF4D4D" stroke-width="14" stroke-linecap="round"/>
+    <path d="M340 300 Q380 250 380 170" fill="none" ${st(LW * 1.6)}/><circle cx="380" cy="150" r="42" fill="#FFB86B" ${st()}/>
+    <path d="M360 140 h40 M362 155 h36" ${st(LW * 0.5)}/><path d="M430 110 l25 -20 M440 150 h30 M430 190 l25 15" ${st(LW * 0.8)}/>`],
+  ['st_hot', '더워', '#FF9F43', () => `
+    <path d="M140 250 Q140 140 256 140 Q372 140 372 250 L372 330 Q360 360 345 335 Q335 400 315 345 Q300 380 285 350 Q270 430 250 350 Q235 380 220 345 Q200 410 185 340 Q165 365 150 335 Z" fill="#FFB86B" ${st()}/>
+    ${face(256, 245, 150, 'line', 'tongue')}${drop(160, 200, 14)}${drop(355, 190, 12)}
+    <circle cx="410" cy="100" r="42" fill="#FFD84D" ${st()}/>${[0, 45, 90, 135, 180, 225, 270, 315].map(a => `<path d="M410 40 v-18" ${st(LW * 0.8)} transform="rotate(${a} 410 100)"/>`).join('')}`],
+  ['st_cold', '추워', '#9DD6FF', () => `
+    ${body(256, 270, 125, 120, '#9DD6FF', 14)}${face(256, 250, 145, 'x', 'wave', true)}
+    <path d="M140 320 Q256 370 372 320 L372 350 Q256 400 140 350 Z" fill="#FF6B6B" ${st()}/><rect x="320" y="340" width="40" height="80" rx="10" fill="#FF6B6B" ${st()}/>
+    <path d="M330 375 h20 M330 395 h20" stroke="#fff" stroke-width="8"/>
+    ${[[90, 120], [420, 120], [110, 400]].map(([x, y]) => `<path d="M${x} ${y - 22} v44 M${x - 19} ${y - 11} l38 22 M${x - 19} ${y + 11} l38 -22" fill="none" stroke="#fff" stroke-width="${LW * 1.1}" stroke-linecap="round"/><path d="M${x} ${y - 22} v44 M${x - 19} ${y - 11} l38 22 M${x - 19} ${y + 11} l38 -22" fill="none" stroke="${INK}" stroke-width="3"/>`).join('')}`],
+  ['st_party', '파티각', '#B79CFF', () => `
+    ${body(256, 300, 120, 105, '#B79CFF', 15)}${face(256, 305, 140, 'happy', 'open')}
+    <path d="M210 200 L262 70 L310 200 Z" fill="#FFE066" ${st()}/><path d="M230 150 l60 0 M220 175 l80 0" stroke="#FF6B9A" stroke-width="12"/><circle cx="262" cy="66" r="18" fill="#FF6B9A" ${st(LW * 0.7)}/>
+    ${[[100, 150, '#FF6B9A'], [410, 160, '#7ED99A'], [90, 300, '#FFD84D'], [430, 300, '#7FD3E8'], [140, 90, '#7FD3E8'], [390, 90, '#FFD84D']].map(([x, y, c], i) => `<rect x="${x}" y="${y}" width="26" height="14" rx="4" fill="${c}" ${st(LW * 0.45)} transform="rotate(${i * 37} ${x} ${y})"/>`).join('')}`],
+  ['st_bday', '생축', '#FFB3C7', () => `
+    <rect x="130" y="250" width="252" height="150" rx="22" fill="#FFE9C9" ${st()}/><path d="M130 290 q32 30 63 0 q32 30 63 0 q32 30 63 0 q32 30 63 0" fill="none" stroke="#FF7A9C" stroke-width="22" stroke-linecap="round"/>
+    <path d="M130 290 q32 30 63 0 q32 30 63 0 q32 30 63 0 q32 30 63 0" fill="none" ${st(LW * 0.5)}/>
+    ${face(256, 350, 120, 'happy', 'smile')}
+    <rect x="243" y="170" width="26" height="80" rx="8" fill="#9DB4FF" ${st(LW * 0.8)}/><path d="M256 120 Q280 150 256 168 Q232 150 256 120 Z" fill="#FFD84D" ${st(LW * 0.7)}/>
+    ${sparkle(400, 150, 30)}${sparkle(110, 170, 22, '#fff')}`],
+  ['st_study', '공부 중', '#9DB4FF', () => `
+    ${body(256, 230, 120, 105, '#9DB4FF', 16)}${face(256, 225, 140, 'line', 'flat', false)}
+    <circle cx="211" cy="207" r="34" fill="none" ${st(LW * 0.9)}/><circle cx="301" cy="207" r="34" fill="none" ${st(LW * 0.9)}/><path d="M245 207 h22" ${st(LW * 0.9)}/>
+    <path d="M110 330 L256 300 L402 330 L402 420 L256 395 L110 420 Z" fill="#fff" ${st()}/><path d="M256 300 V395" ${st()}/>
+    <path d="M140 345 l90 -15 M140 370 l90 -15 M282 330 l90 15 M282 355 l90 15" ${st(LW * 0.4)} opacity=".6"/>${drop(370, 160, 14)}`],
+  ['st_game', '한 판만', '#7FD3E8', () => `
+    <path d="M150 190 h212 q70 0 80 90 q10 100 -50 100 q-35 0 -55 -45 h-162 q-20 45 -55 45 q-60 0 -50 -100 q10 -90 80 -90 Z" fill="#7FD3E8" ${st()}/>
+    <path d="M150 250 v50 M125 275 h50" ${st(LW * 1.3)}/><circle cx="350" cy="255" r="15" fill="#FF6B6B" ${st(LW * 0.6)}/><circle cx="385" cy="290" r="15" fill="#FFD84D" ${st(LW * 0.6)}/>
+    ${face(256, 270, 110, 'googly', 'open', false)}${sparkle(420, 120, 28)}`],
+  // ---- 캠핑 장비 ----
+  ['st_tent', '텐트', '#FFB86B', () => `
+    <path d="M70 400 L256 110 L442 400 Z" fill="#FFB86B" ${st()}/><path d="M256 110 L256 400" ${st(LW * 0.7)}/>
+    <path d="M200 400 Q256 260 312 400 Z" fill="#8B5A3C" ${st()}/>${face(256, 230, 110, 'happy', 'smile')}
+    <path d="M256 110 L256 70 M256 72 l40 14 l-40 14" fill="#FF6B6B" ${st(LW * 0.8)}/>
+    <path d="M60 400 L40 430 M452 400 L472 430" ${st()}/><path d="M50 410 H462" ${st(LW * 0.6)}/>`],
+  ['st_lantern', '랜턴', '#FFD84D', () => `
+    <path d="M200 120 Q256 60 312 120" fill="none" ${st(LW * 1.2)}/><rect x="190" y="120" width="132" height="40" rx="12" fill="#5DAA4B" ${st()}/>
+    <circle cx="256" cy="270" r="130" fill="#FFE066" opacity=".35"/>
+    <rect x="180" y="160" width="152" height="190" rx="40" fill="#FFF3B0" ${st()}/><path d="M220 165 v180 M292 165 v180" ${st(LW * 0.5)} opacity=".5"/>
+    ${face(256, 255, 120, 'happy', 'smile')}<rect x="175" y="345" width="162" height="48" rx="14" fill="#5DAA4B" ${st()}/>${sparkle(400, 140, 26)}${sparkle(110, 200, 18, '#fff')}`],
+  ['st_chair', '캠핑 의자', '#7FD3E8', () => `
+    <path d="M150 230 L362 430 M362 230 L150 430" ${st(LW * 1.3)}/>
+    <path d="M140 110 Q256 90 372 110 L362 260 Q256 280 150 260 Z" fill="#7FD3E8" ${st()}/><path d="M130 260 Q256 300 382 260 L372 300 Q256 340 140 300 Z" fill="#5BB8D0" ${st()}/>
+    ${face(256, 185, 120, 'line', 'smile')}<rect x="370" y="250" width="44" height="58" rx="10" fill="#FF7A6B" ${st(LW * 0.8)}/>`],
+  ['st_fire', '불멍', '#FF7A45', () => `
+    <path d="M140 400 L372 340 M372 400 L140 340" stroke="#8B5A3C" stroke-width="40" stroke-linecap="round"/><path d="M140 400 L372 340 M372 400 L140 340" fill="none" ${st(LW * 0.6)}/>
+    <path d="M256 70 Q330 150 345 230 Q360 330 256 350 Q152 330 167 230 Q175 180 215 150 Q210 200 235 210 Q220 140 256 70 Z" fill="#FF7A45" ${st()}/>
+    <path d="M256 180 Q300 240 295 290 Q285 330 256 330 Q227 330 217 290 Q215 240 256 180 Z" fill="#FFD84D" stroke="none"/>
+    ${face(256, 285, 100, 'line', 'o', false)}${sparkle(380, 120, 18, '#FFD84D')}${sparkle(130, 150, 14, '#FFD84D')}`],
+  ['st_marsh', '마시멜로', '#FFE9C9', () => `
+    <path d="M90 440 L330 200" stroke="#B07A4A" stroke-width="14" stroke-linecap="round"/><path d="M90 440 L330 200" ${st(LW * 0.4)}/>
+    <g transform="rotate(-45 330 200)"><rect x="250" y="120" width="170" height="150" rx="50" fill="#FFF6EA" ${st()}/><path d="M250 210 q85 40 170 0 v10 q0 50 -50 50 h-70 q-50 0 -50 -50 Z" fill="#E8B07A" ${st(LW * 0.7)}/></g>
+    ${face(330, 190, 110, 'happy', 'tongue')}<path d="M420 90 q-15 -25 5 -45 M455 120 q-15 -25 5 -45" fill="none" ${st(LW * 0.7)}/>`],
+  ['st_cooler', '아이스박스', '#5BB8D0', () => `
+    <rect x="110" y="190" width="292" height="220" rx="30" fill="#5BB8D0" ${st()}/><rect x="100" y="160" width="312" height="60" rx="20" fill="#fff" ${st()}/>
+    <path d="M190 160 Q256 110 322 160" fill="none" ${st(LW * 1.2)}/>${face(256, 310, 140, 'dot', 'smile')}
+    <rect x="135" y="235" width="40" height="40" rx="8" fill="#E6F7FF" ${st(LW * 0.6)} transform="rotate(15 155 255)"/><rect x="340" y="240" width="34" height="34" rx="8" fill="#E6F7FF" ${st(LW * 0.6)} transform="rotate(-12 357 257)"/>`],
+  ['st_kettle', '버너·코펠', '#C9CED6', () => `
+    <rect x="130" y="380" width="252" height="40" rx="12" fill="#4A4F57" ${st()}/><path d="M200 380 l-20 -30 M312 380 l20 -30" ${st()}/>
+    <path d="M160 200 h192 l-10 150 q0 20 -20 20 h-132 q-20 0 -20 -20 Z" fill="#C9CED6" ${st()}/><rect x="150" y="180" width="212" height="30" rx="12" fill="#B0B6BF" ${st()}/>
+    <path d="M352 230 q60 0 60 40 q0 30 -55 40" fill="none" ${st()}/>${face(256, 285, 120, 'happy', 'o')}
+    <path d="M200 160 q-15 -25 5 -50 M256 160 q-15 -25 5 -50 M312 160 q-15 -25 5 -50" fill="none" ${st(LW * 0.7)}/>
+    <path d="M230 380 Q256 340 282 380 Z" fill="#7FD3E8" ${st(LW * 0.6)}/>`],
+  ['st_mug', '캠핑 머그', '#FFFFFF', () => `
+    <path d="M140 170 h232 v190 q0 50 -50 50 h-132 q-50 0 -50 -50 Z" fill="#F6F7F9" ${st()}/><path d="M140 170 h232" stroke="#3B6FD8" stroke-width="22"/><path d="M140 170 h232" ${st()}/>
+    <path d="M372 210 q70 0 70 60 q0 60 -70 60" fill="none" stroke="#F6F7F9" stroke-width="26"/><path d="M372 210 q70 0 70 60 q0 60 -70 60" fill="none" ${st()}/>
+    ${face(256, 290, 130, 'happy', 'smile')}<circle cx="330" cy="370" r="10" fill="#3B6FD8" opacity=".5"/>
+    <path d="M200 140 q-15 -25 5 -50 M256 140 q-15 -25 5 -50 M312 140 q-15 -25 5 -50" fill="none" ${st(LW * 0.7)}/>`],
+  ['st_bbq', '캠핑 고기', '#FF7A6B', () => `
+    <path d="M110 260 h292 q0 120 -146 120 q-146 0 -146 -120 Z" fill="#4A4F57" ${st()}/><path d="M190 380 l-30 60 M322 380 l30 60" ${st()}/>
+    <path d="M100 260 h312" ${st(LW * 1.2)}/>
+    <rect x="140" y="200" width="150" height="56" rx="28" fill="#C0583F" ${st()}/><path d="M165 215 l20 25 M200 215 l20 25 M235 215 l20 25" ${st(LW * 0.5)}/>
+    <ellipse cx="350" cy="225" rx="62" ry="38" fill="#FF8A80" ${st()}/><path d="M320 215 q30 -15 60 5" fill="none" stroke="#fff" stroke-width="10"/>
+    ${face(350, 225, 80, 'happy', 'smile', false)}<path d="M200 170 q-15 -25 5 -45 M300 165 q-15 -25 5 -45" fill="none" ${st(LW * 0.7)}/>`],
+  ['st_sleepbag', '침낭', '#7ED99A', () => `
+    <path d="M150 120 Q256 70 362 120 L380 400 Q256 450 132 400 Z" fill="#7ED99A" ${st()}/><path d="M256 95 V430" ${st(LW * 0.5)} stroke-dasharray="14 12"/>
+    <ellipse cx="256" cy="185" rx="85" ry="70" fill="#FFD2A6" ${st()}/>${face(256, 190, 120, 'line', 'o')}
+    <path d="M150 230 Q256 270 362 230" fill="none" ${st()}/>
+    <text x="360" y="120" font-size="50" font-weight="900" fill="${INK}">z</text><text x="400" y="80" font-size="36" font-weight="900" fill="${INK}">z</text>`],
+  ['st_backpack', '배낭', '#FF9F43', () => `
+    <path d="M170 140 Q256 90 342 140 L362 400 Q256 430 150 400 Z" fill="#FF9F43" ${st()}/><path d="M215 140 Q256 60 297 140" fill="none" ${st(LW * 1.2)}/>
+    <rect x="190" y="300" width="132" height="90" rx="20" fill="#E07A2C" ${st()}/><path d="M190 330 h132" ${st(LW * 0.6)}/>
+    ${face(256, 220, 120, 'dot', 'smile')}<rect x="345" y="230" width="34" height="110" rx="14" fill="#7FD3E8" ${st(LW * 0.8)}/>
+    <path d="M120 300 a35 35 0 1 0 0.1 0" fill="none" ${st(LW * 0.6)}/>`],
+  ['st_camper', '캠핑카', '#FFE066', () => `
+    <path d="M70 200 Q70 140 130 140 h220 q40 0 60 40 l40 80 v100 h-370 Z" fill="#FFE066" ${st()}/><path d="M70 280 h400" stroke="#FF7A6B" stroke-width="22"/><path d="M70 280 h400" ${st(LW * 0.5)}/>
+    <path d="M360 160 h40 l35 70 h-75 Z" fill="#B8E2F2" ${st(LW * 0.8)}/><rect x="110" y="170" width="90" height="70" rx="14" fill="#B8E2F2" ${st(LW * 0.8)}/>
+    ${face(270, 205, 110, 'happy', 'smile')}<circle cx="150" cy="370" r="40" fill="#4A4F57" ${st()}/><circle cx="380" cy="370" r="40" fill="#4A4F57" ${st()}/>
+    <circle cx="150" cy="370" r="14" fill="#C9CED6"/><circle cx="380" cy="370" r="14" fill="#C9CED6"/>`],
 ];
 
 // 글자 없이 캐릭터만: 그림을 가운데로 모아 크게
@@ -163,8 +272,8 @@ const svg = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" hei
     out.push(data);
   }
   // 미리보기 한 장
-  await p.setContent(`<body style="margin:0;background:#6d7f95;display:grid;grid-template-columns:repeat(6,160px);gap:8px;padding:12px">${out.map(d => `<img src="${d}" width=160>`).join('')}</body>`);
-  await p.setViewportSize({ width: 6 * 168 + 24, height: 3 * 168 + 24 });
+  await p.setContent(`<body style="margin:0;background:#6d7f95;display:grid;grid-template-columns:repeat(8,160px);gap:8px;padding:12px">${out.map(d => `<img src="${d}" width=160>`).join('')}</body>`);
+  await p.setViewportSize({ width: 8 * 168 + 24, height: Math.ceil(STICKERS.length / 8) * 168 + 24 });
   await p.screenshot({ path: __dirname + '/prev_stickers.png' });
   await b.close(); console.log('stickers', STICKERS.length);
 })();

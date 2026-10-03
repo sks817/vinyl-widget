@@ -28,6 +28,8 @@ class StickerConfigActivity : Activity() {
     private var widgetId = AppWidgetManager.INVALID_APPWIDGET_ID
     private var sticker = 0
     private var pkg: String? = null
+    private lateinit var look: StickerWidget.Look
+    private lateinit var ui: SheetUi
 
     private val sheetBg by lazy { getColor(android.R.color.system_neutral1_900) }
     private val cardBg by lazy { getColor(android.R.color.system_neutral1_800) }
@@ -56,6 +58,8 @@ class StickerConfigActivity : Activity() {
         if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) { finish(); return }
         sticker = StickerWidget.sticker(this, widgetId)
         pkg = StickerWidget.app(this, widgetId)
+        look = StickerWidget.look(this, widgetId)
+        ui = SheetUi(this)
 
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(sheetBg) }
         val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(12), dp(16), dp(16)) }
@@ -90,6 +94,15 @@ class StickerConfigActivity : Activity() {
             }
         })
 
+        // 기울기 · 테두리
+        body.addView(ui.card("기울기").also { c ->
+            c.addView(ui.slider("기울기", 30, look.tilt + 15, { v -> val d = v - 15; if (d > 0) "+$d°" else "$d°" }) { look.tilt = it - 15; refresh() }.first)
+        })
+        body.addView(ui.borderCard({ look.border }, { look.borderDp }, { look.borderColor }) { st, t, col ->
+            if (st != null) look.border = st; if (t != null) look.borderDp = t; if (col != null) look.borderColor = col
+            refresh()
+        })
+
         // 누르면 열 앱
         body.addView(card("누르면 열 앱").also { c ->
             val search = EditText(this).apply {
@@ -111,6 +124,7 @@ class StickerConfigActivity : Activity() {
         setContentView(root)
         root.padForSystemBars()
 
+        ui.refresh()
         addAppRow(null, "앱 안 열기 (그냥 스티커)", null)
         loadApps()
         refresh()
@@ -150,7 +164,8 @@ class StickerConfigActivity : Activity() {
     }
 
     private fun refresh() {
-        preview.setImageResource(Stickers.RES[sticker.coerceIn(0, Stickers.RES.size - 1)])
+        if (look.tilt == 0 && (look.border == BorderFx.NONE || look.borderDp <= 0)) preview.setImageResource(Stickers.RES[sticker.coerceIn(0, Stickers.RES.size - 1)])
+        else preview.setImageBitmap(StickerWidget.image(this, sticker, look, dp(112), dp(112), resources.displayMetrics.density))
         cells.forEach { it.background = if (it.tag == sticker) rounded(Color.TRANSPARENT, 16f, accent, 3) else null }
         val label = appRows.firstOrNull { it.second == pkg && pkg != null }?.first?.tag as String?
         appName.text = if (pkg == null) "누르면: 아무 일도 안 해요" else "누르면: ${label ?: pkg} 열기"
@@ -159,6 +174,7 @@ class StickerConfigActivity : Activity() {
 
     private fun save() {
         StickerWidget.save(this, widgetId, sticker, pkg)
+        StickerWidget.saveLook(this, widgetId, look)
         AppWidgetManager.getInstance(this).updateAppWidget(widgetId, StickerWidget.build(this, widgetId))
         setResult(RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId))
         finish()

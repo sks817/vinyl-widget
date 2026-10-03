@@ -79,9 +79,17 @@ object Palette {
 
     /**
      * 위젯 바탕(bg_image). visible=false면 바탕을 숨김.
-     * 모서리 둥글기를 직접 고르면(corner >= 0) 그 곡률로 바탕을 그려 넣고, 아니면 시스템 기본 곡률 그림을 씀
+     * 테두리를 켜거나 모서리 둥글기를 직접 고르면 바탕을 그려 넣고, 아니면 시스템 기본 곡률 그림을 씀
      */
     fun applyBackground(ctx: Context, rv: RemoteViews, s: WidgetStyle, wDp: Float, hDp: Float, visible: Boolean = true) {
+        val bordered = visible && s.border != BorderFx.NONE && s.borderDp > 0
+        if (bordered) {
+            // 테두리는 바탕 투명도와 상관없이 또렷하게: 투명도는 그림 안의 바탕에만 넣고 전체는 불투명으로
+            rv.setImageViewBitmap(R.id.bg_image, borderedBg(ctx, s, wDp, hDp))
+            rv.setInt(R.id.bg_image, "setColorFilter", 0)
+            rv.setInt(R.id.bg_image, "setImageAlpha", 255)
+            return
+        }
         if (s.corner >= 0 && visible) {
             rv.setImageViewBitmap(R.id.bg_image, roundedBg(ctx, s, wDp, hDp))
             rv.setInt(R.id.bg_image, "setColorFilter", 0)
@@ -95,32 +103,75 @@ object Palette {
         rv.setInt(R.id.bg_image, "setImageAlpha", if (visible) WidgetPrefs.alphaOf(s.transparency) else 0)
     }
 
+    private fun scaleOf(ctx: Context, wDp: Float, hDp: Float): Float {
+        val dens = WidgetGeom.density(ctx)
+        return dens * min(1f, 720f / (max(wDp, hDp) * dens))
+    }
+
     /** 고른 곡률(짧은 변의 %)로 그린 바탕. 유리면 widget_bg_glass와 같은 층(바탕·색 비침·빛 반사·테두리) */
     private fun roundedBg(ctx: Context, s: WidgetStyle, wDp: Float, hDp: Float): Bitmap {
-        val dens = WidgetGeom.density(ctx)
-        val k = dens * min(1f, 900f / (max(wDp, hDp) * dens))
+        val k = scaleOf(ctx, wDp, hDp)
         val w = (wDp * k).toInt().coerceAtLeast(2); val h = (hDp * k).toInt().coerceAtLeast(2)
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        val c = Canvas(bmp)
         val r = RectF(0f, 0f, w.toFloat(), h.toFloat())
-        val rad = min(w, h) * s.corner.coerceIn(0, 50) / 100f
+        drawCard(ctx, Canvas(bmp), r, min(w, h) * s.corner.coerceIn(0, 50) / 100f, s, k)
+        return bmp
+    }
+
+    /** 바탕 카드 한 장 (유리 층 또는 단색) */
+    private fun drawCard(ctx: Context, c: Canvas, r: RectF, rad: Float, s: WidgetStyle, k: Float) {
         val pt = Paint(Paint.ANTI_ALIAS_FLAG)
+        val w = r.width(); val h = r.height()
         if (s.glass) {
             pt.color = ctx.getColor(R.color.glass_fill); c.drawRoundRect(r, rad, rad, pt)
             pt.color = 0
-            pt.shader = LinearGradient(0f, 0f, w.toFloat(), h.toFloat(), ctx.getColor(R.color.glass_tint), 0, Shader.TileMode.CLAMP)
+            pt.shader = LinearGradient(r.left, r.top, r.right, r.bottom, ctx.getColor(R.color.glass_tint), 0, Shader.TileMode.CLAMP)
             c.drawRoundRect(r, rad, rad, pt)
-            pt.shader = LinearGradient(0f, 0f, 0f, h / 2f, ctx.getColor(R.color.glass_shine), 0x00FFFFFF, Shader.TileMode.CLAMP)
+            pt.shader = LinearGradient(0f, r.top, 0f, r.top + h / 2f, ctx.getColor(R.color.glass_shine), 0x00FFFFFF, Shader.TileMode.CLAMP)
             c.drawRoundRect(r, rad, rad, pt)
             pt.shader = null
             val sw = k
             pt.style = Paint.Style.STROKE; pt.strokeWidth = sw; pt.color = ctx.getColor(R.color.glass_stroke)
-            val ri = RectF(sw / 2, sw / 2, w - sw / 2, h - sw / 2)
+            val ri = RectF(r.left + sw / 2, r.top + sw / 2, r.right - sw / 2, r.bottom - sw / 2)
             c.drawRoundRect(ri, max(0f, rad - sw / 2), max(0f, rad - sw / 2), pt)
         } else {
             pt.color = WidgetPrefs.bgColor(s); c.drawRoundRect(r, rad, rad, pt)
         }
-        return bmp
+    }
+
+    /** 테두리 바탕은 그리는 데 시간이 걸려서 최근 것 몇 장을 기억 (음악 위젯은 자주 다시 그림) */
+    private val bgCache = object : LinkedHashMap<String, Bitmap>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Bitmap>?) = size > 6
+    }
+
+    /** 테두리 스타일을 붙인 바탕: 테두리·그림자 자리만큼 안쪽에 카드, 바탕 투명도는 카드에만 */
+    private fun borderedBg(ctx: Context, s: WidgetStyle, wDp: Float, hDp: Float): Bitmap {
+        val k = scaleOf(ctx, wDp, hDp)
+        val w = (wDp * k).toInt().coerceAtLeast(2); val h = (hDp * k).toInt().coerceAtLeast(2)
+        val key = "$w,$h,${s.border},${s.borderDp},${s.borderColor},${s.corner},${s.glass},${s.bg},${s.white},${s.transparency}," +
+            "${ctx.getColor(R.color.glass_fill)},${ctx.getColor(R.color.glass_tint)}"
+        synchronized(bgCache) { bgCache[key]?.let { return it } }
+        return makeBorderedBg(ctx, s, k, w, h).also { synchronized(bgCache) { bgCache[key] = it } }
+    }
+
+    private fun makeBorderedBg(ctx: Context, s: WidgetStyle, k: Float, w: Int, h: Int): Bitmap {
+        val tPx = s.borderDp * k
+        val pad = BorderFx.pad(s.border, tPx, k).coerceAtMost(min(w, h) * 0.2f)
+        val r = RectF(pad, pad, w - pad, h - pad)
+        val pct = if (s.corner >= 0) s.corner.coerceIn(0, 50) else 11
+        val rad = min(r.width(), r.height()) * pct / 100f
+        val card = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val cc = Canvas(card)
+        val alpha = if (bgHidden(s)) 0 else WidgetPrefs.alphaOf(s.transparency)
+        if (alpha > 0) {
+            cc.saveLayerAlpha(null, alpha)
+            drawCard(ctx, cc, r, rad, s, k)
+            cc.restore()
+        }
+        // 테두리는 카드 모양을 따라감 (바탕이 투명해도)
+        val shape = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        Canvas(shape).drawRoundRect(r, rad, rad, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF000000.toInt() })
+        return BorderFx.apply(card, s.border, tPx, s.borderColor, k, shape)
     }
 
     private val AUTO_ICONS = mapOf(
